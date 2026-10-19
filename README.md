@@ -7,7 +7,7 @@ Given an alert, the agent gathers evidence with tools, screens for sanctions, ch
 recommends **CLOSE**, **RFI** (request for information) or **ESCALATE**, with a cited narrative. Guardrails check
 every recommendation, a human analyst approves or overrides it, and every step is written to an audit trail.
 
-**Live app:** _Streamlit link coming soon_ · **Web demo:** [`demo/index.html`](demo/index.html) · **Built by:** [Peer Arif](https://github.com/Peerarif5656)
+**Live app:** [aml-triage-agent-peerarif.streamlit.app](https://aml-triage-agent-peerarif.streamlit.app) · **Web demo:** [`demo/index.html`](demo/index.html) · **Built by:** [Peer Arif](https://github.com/Peerarif5656)
 
 > All data is synthetic. Customers, counterparties, the sanctions list and the higher-risk jurisdictions
 > (QK, QM, QV) are fictional. The policy is illustrative and modelled loosely on UK practice.

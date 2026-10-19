@@ -30,8 +30,18 @@ st.markdown("""
         letter-spacing:0.02em;border:1px solid currentColor;}
 .small-label {font-size:0.8rem;opacity:0.7;margin-bottom:0.25rem;}
 .evidence code {font-size:0.78rem;}
+.kpis {display:flex;flex-wrap:wrap;gap:0.75rem 1.75rem;align-items:flex-end;margin:0.25rem 0 0.5rem;}
+.kpi .k {font-size:0.75rem;opacity:0.7;text-transform:uppercase;letter-spacing:0.06em;}
+.kpi .v {font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.kpi .v small {font-weight:500;opacity:0.7;}
 </style>
 """, unsafe_allow_html=True)
+
+
+def kpis(items: list[tuple[str, str]]) -> str:
+    """Compact label/value row that wraps instead of truncating (st.metric truncates in narrow columns)."""
+    cells = "".join(f"<div class='kpi'><div class='k'>{k}</div><div class='v'>{v}</div></div>" for k, v in items)
+    return f"<div class='kpis'>{cells}</div>"
 
 
 # ----------------------------------------------------------------------------- setup
@@ -138,13 +148,12 @@ tab_inv, tab_eval, tab_how = st.tabs(["🔎 Investigate", "📊 Evaluation", "�
 def render_result(r: CaseResult) -> None:
     d = r.decision
     st.subheader(f"Recommendation for {r.alert_id}")
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.markdown("<div class='small-label'>Agent recommends</div>" + badge(d["disposition"]),
-                    unsafe_allow_html=True)
-    c2.metric("Risk score", f"{d['risk_score']}/100")
-    c3.metric("Rules engine (2nd line)", f"{r.rules['disposition']} · {r.rules['score']}")
-    c4.metric("Grounded citations", f"{r.grounding['grounded']}/{r.grounding['cited']}")
+    st.markdown(kpis([
+        ("Agent recommends", badge(d["disposition"])),
+        ("Risk score", f"{d['risk_score']}<small>/100</small>"),
+        ("Rules engine (2nd line)", f"{r.rules['disposition']} <small>{r.rules['score']}</small>"),
+        ("Grounded citations", f"{r.grounding['grounded']}/{r.grounding['cited']}"),
+    ]), unsafe_allow_html=True)
     m = r.metrics
     st.caption(f"Investigator: **{r.mode}** ({r.model}) · confidence {d['confidence']} · {m['tool_calls']} tool calls"
                + (f" · {m['llm_calls']} LLM calls · {m['prompt_tokens'] + m['completion_tokens']:,} tokens"
@@ -244,9 +253,8 @@ with tab_inv:
     with left:
         st.subheader("Alert queue")
         st.dataframe(pd.DataFrame([{
-            "Alert": a["alert_id"], "Date": a["alert_date"], "Priority": a["priority"],
-            "Customer": store.get_customer(a["customer_id"])["name"], "Rule": a["rule_name"],
-            "Status": status_for(a["alert_id"])} for a in alerts]),
+            "Alert": a["alert_id"], "Customer": store.get_customer(a["customer_id"])["name"],
+            "Priority": a["priority"], "Status": status_for(a["alert_id"])} for a in alerts]),
             hide_index=True, width="stretch", height=300)
         alert_id = st.selectbox("Alert to investigate", [a["alert_id"] for a in alerts],
                                 format_func=lambda x: f"{x} · {store.get_customer(store.get_alert(x)['customer_id'])['name']}")
@@ -255,10 +263,10 @@ with tab_inv:
         with st.container(border=True):
             st.markdown(f"**{alert['rule_id']}** · {alert['rule_name']}")
             st.write(alert["trigger_summary"])
-            k1, k2, k3 = st.columns(3)
-            k1.metric("Customer type", customer["customer_type"].title())
-            k2.metric("KYC risk", customer["risk_rating"].title())
-            k3.metric("Priority", alert["priority"].title())
+            st.markdown(kpis([("Customer type", customer["customer_type"].title()),
+                              ("KYC risk", customer["risk_rating"].title()),
+                              ("Priority", alert["priority"].title()),
+                              ("Raised", alert["alert_date"])]), unsafe_allow_html=True)
             st.caption(f"{customer['name']} · {customer['occupation']} · customer since "
                        f"{customer['account_opened'][:4]}" + (" · PEP" if customer.get("pep") else ""))
         run = st.button("▶ Run investigation", type="primary", width="stretch")
