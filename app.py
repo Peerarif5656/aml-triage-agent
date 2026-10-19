@@ -47,7 +47,7 @@ st.markdown("""
   --esc: #B42318; --esc-bg: #FDEEEC; --rfi: #94560A; --rfi-bg: #FDF3E1; --close: #0B7344; --close-bg: #E5F3EB;
   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-.block-container { padding-top: 1.6rem; padding-bottom: 3rem; max-width: 1360px; }
+.block-container { padding-top: 4.4rem; padding-bottom: 3rem; max-width: 1360px; }
 h1, h2, h3, h4 { letter-spacing: -0.01em; }
 
 /* masthead */
@@ -124,9 +124,8 @@ h1, h2, h3, h4 { letter-spacing: -0.01em; }
              background: var(--ink); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--ink); }
 .meter .mk.rules { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); top: calc(50% + 13px);
                    transform: translate(-50%, -50%) rotate(45deg); box-shadow: none; }
-.scale { position: relative; height: 16px; font-size: 0.72rem; color: var(--muted); margin-top: 14px; }
-.scale span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
-.scale span.l { transform: none; } .scale span.r { transform: translateX(-100%); }
+.scale { display: flex; font-size: 0.72rem; color: var(--muted); margin-top: 16px; }
+.scale span { text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .vnote { color: var(--muted); font-size: 0.86rem; margin-top: 6px; }
 .vnote b { color: var(--text); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px 18px; margin: 14px 0 4px; }
@@ -155,6 +154,7 @@ h1, h2, h3, h4 { letter-spacing: -0.01em; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .chip { font-family: var(--mono); font-size: 0.74rem; padding: 1px 6px; border-radius: 4px; color: var(--ink-2);
         background: #EEF1F5; border: 1px solid var(--rule); }
+.chip.more { font-family: inherit; color: var(--accent); background: var(--accent-bg); border-color: transparent; cursor: help; }
 .none { color: var(--muted); font-style: italic; }
 
 /* trace */
@@ -203,10 +203,19 @@ def esc(x) -> str:
     return html.escape(str(x), quote=True)
 
 
-def chips(ids: list[str]) -> str:
+def plural(n: int, word: str) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def chips(ids: list[str], limit: int = 8) -> str:
+    """Evidence reference chips; long lists show the first few and a '+N more' chip listing the rest on hover."""
     if not ids:
         return "<div class='chips'><span class='none'>No evidence cited</span></div>"
-    return "<div class='chips'>" + "".join(f"<span class='chip'>{esc(i)}</span>" for i in ids) + "</div>"
+    shown = "".join(f"<span class='chip'>{esc(i)}</span>" for i in ids[:limit])
+    rest = ids[limit:]
+    if rest:
+        shown += f"<span class='chip more' title='{esc(', '.join(rest))}'>+{len(rest)} more</span>"
+    return f"<div class='chips'>{shown}</div>"
 
 
 def trace_row(e: dict) -> str:
@@ -352,10 +361,10 @@ def verdict_html(r: CaseResult) -> str:
       <span class="lbl">risk score, confidence {esc(d['confidence'].lower())}</span></div>
     <div class="meter" role="img" aria-label="Risk score {d['risk_score']} of 100; rules engine {rules['score']}">
       <span class="tick" style="left:{t['RFI']}%"></span><span class="tick" style="left:{t['ESC']}%"></span>
-      <span class="mk" style="left:{d['risk_score']}%"></span><span class="mk rules" style="left:{rules['score']}%"></span>
+      <span class="mk" style="left:{min(max(d['risk_score'], 2), 98)}%"></span><span class="mk rules" style="left:{min(max(rules['score'], 2), 98)}%"></span>
     </div>
-    <div class="scale"><span class="l" style="left:0">Close</span><span style="left:{t['RFI']}%">Request info</span>
-      <span style="left:{t['ESC']}%">Escalate</span><span class="r" style="left:100%">100</span></div>
+    <div class="scale"><span style="width:{t['RFI']}%">Close</span><span style="width:{t['ESC'] - t['RFI']}%">Request info</span>
+      <span style="width:{100 - t['ESC']}%">Escalate</span></div>
     <div class="vnote">Circle: agent. Diamond: independent rules engine, which scored <b>{rules['score']}</b>
       ({DISPLAY[rules['disposition']]}) and <b>{'agrees' if agrees else 'disagrees'}</b>.</div>
   </div>
@@ -522,7 +531,7 @@ with tab_inv:
             else:
                 with st.status(f"Investigating {alert_id}", expanded=True) as status:
                     result = agent.run(alert_id, on_event=lambda e: status.markdown(trace_row(e), unsafe_allow_html=True))
-                    status.update(label=f"Investigation complete: {result.metrics['tool_calls']} tool calls in "
+                    status.update(label=f"Investigation complete: {plural(result.metrics['tool_calls'], 'tool call')} in "
                                         f"{result.metrics['latency_ms'] / 1000:.1f} s", state="complete", expanded=False)
                 ss.results[alert_id] = result
         result = ss.results.get(alert_id)
