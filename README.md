@@ -98,14 +98,23 @@ tools (`get_alert`, `get_customer_profile`, `detect_typologies`, `screen_sanctio
 ## Results
 
 <!-- RESULTS -->
-Evaluated on 13 analyst-labelled alerts (`python -m eval.run_eval`, or the app's **Evaluation** tab):
+Evaluated on 13 analyst-labelled alerts. Full reports are in [`eval/results/`](eval/results/) and in the app's
+**Evaluation** tab.
 
-| Investigator | Accuracy | Escalation recall | Missed escalations | Grounding |
-|---|---|---|---|---|
-| Offline rules engine | 13/13 | 100% | 0 | 100% |
+| Investigator | Accuracy | Escalation recall | Missed escalations¹ | Grounding² | Caught by dual control³ |
+|---|---|---|---|---|---|
+| **LLM agent** (gpt-oss-120b, prompt v1.5) | **11/13 (85%)** | 5/6 (83%) | **0** | 98.9% | **2 of 2 errors** |
+| Offline rules engine | 13/13 | 6/6 | 0 | 100% | n/a |
 
-The rules engine was calibrated on this synthetic set, so its score is a sanity check rather than evidence of
-generalisation.
+¹ Labelled ESCALATE but recommended CLOSE, the costliest error in AML.
+² Share of cited IDs that a tool actually returned; one invented citation was removed by `CTRL-GROUNDING`.
+³ Both LLM errors disagreed with the independent rules engine, so `CTRL-DUAL` sent them to a senior analyst:
+ALT-1009 (round-tripping, recommended RFI instead of ESCALATE) and ALT-1007 (café turnover, recommended CLOSE
+instead of RFI). No error would have been actioned without review.
+
+The rules engine was calibrated on this synthetic set, so its score is a sanity check; the LLM result is the
+informative one. A single investigation takes 1–3 seconds and about 4,500 tokens; batch latency in the report is
+higher because it includes waits for Groq's free-tier rate limit.
 <!-- /RESULTS -->
 
 **Engineering for cost and latency.** The first version used seven small tools; gpt-oss calls one tool per turn and

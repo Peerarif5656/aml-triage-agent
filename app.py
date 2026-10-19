@@ -365,9 +365,12 @@ with tab_eval:
              "all of them and measures accuracy, **escalation recall** (the costliest AML error is closing "
              "something that should have been escalated), **grounding** (every cited ID must come from a tool) "
              "and how often the controls had to step in.")
-    st.caption("Note: the rules engine was calibrated on this synthetic dataset, so its score is a sanity check. "
-               "The informative number is how the LLM agent performs against the same labels.")
-    for path in sorted(RESULTS_DIR.glob("*.json"), reverse=True) if RESULTS_DIR.exists() else []:
+    st.caption("The rules engine was calibrated on this synthetic dataset, so its score is a sanity check; the LLM "
+               "agent's score is the informative one. In the saved LLM run, both errors disagreed with the rules "
+               "engine and were routed to a senior analyst by CTRL-DUAL. Batch latency includes waits for Groq's "
+               "free-tier rate limit; a single case takes 1-3 seconds.")
+    # Saved runs: inserted rules-first so the LLM run is shown first (newest entries render at the top).
+    for path in sorted(RESULTS_DIR.glob("*.json"), key=lambda p: p.stem.startswith("llm")) if RESULTS_DIR.exists() else []:
         saved = json.loads(path.read_text())
         ss.evals.setdefault(saved_run_label(path.stem, saved), saved)
     b1, b2 = st.columns(2)
