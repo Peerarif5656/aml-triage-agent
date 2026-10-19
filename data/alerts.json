@@ -1,0 +1,249 @@
+[
+  {
+    "alert_id": "ALT-1001",
+    "alert_date": "2026-10-09",
+    "rule_id": "TM-CASH-07",
+    "rule_name": "Multiple cash deposits just below £10,000 within 10 days",
+    "customer_id": "C101",
+    "priority": "HIGH",
+    "trigger_summary": "6 cash deposits of £9,200-£9,900 at 5 branches over 8 days, followed by a £56,000 CHAPS payment.",
+    "trigger_txn_ids": [
+      "TX-101-0071",
+      "TX-101-0073",
+      "TX-101-0075",
+      "TX-101-0077",
+      "TX-101-0078",
+      "TX-101-0079",
+      "TX-101-0081"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1002",
+    "alert_date": "2026-10-07",
+    "rule_id": "TM-INFLOW-02",
+    "rule_name": "Single credit exceeds 50% of declared annual income",
+    "customer_id": "C102",
+    "priority": "MEDIUM",
+    "trigger_summary": "£287,450 CHAPS credit from a solicitors' firm against declared income of £41,000.",
+    "trigger_txn_ids": [
+      "TX-102-0050",
+      "TX-102-0052"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1003",
+    "alert_date": "2026-10-10",
+    "rule_id": "SCR-PAY-01",
+    "rule_name": "Payment screening hit on beneficiary name",
+    "customer_id": "C103",
+    "priority": "HIGH",
+    "trigger_summary": "Outbound SWIFT payment of £148,000 to 'Zarovel Shipping and Trading FZE' (QK) hit the sanctions screening filter.",
+    "trigger_txn_ids": [
+      "TX-103-0055"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1004",
+    "alert_date": "2026-10-12",
+    "rule_id": "SCR-CUST-03",
+    "rule_name": "Periodic customer re-screening: name match",
+    "customer_id": "C104",
+    "priority": "MEDIUM",
+    "trigger_summary": "Customer name 'Rebecca Hartmann' returned a similarity hit against a sanctions list entry during periodic re-screening.",
+    "trigger_txn_ids": [],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1005",
+    "alert_date": "2026-10-08",
+    "rule_id": "TM-MULE-04",
+    "rule_name": "Rapid pass-through of third-party funds",
+    "customer_id": "C105",
+    "priority": "HIGH",
+    "trigger_summary": "7 incoming payments from unrelated individuals in 6 days, each moved on within hours to a crypto exchange or withdrawn as cash.",
+    "trigger_txn_ids": [
+      "TX-105-0048",
+      "TX-105-0049",
+      "TX-105-0050",
+      "TX-105-0051",
+      "TX-105-0052",
+      "TX-105-0053",
+      "TX-105-0054",
+      "TX-105-0055",
+      "TX-105-0056",
+      "TX-105-0057",
+      "TX-105-0058",
+      "TX-105-0060",
+      "TX-105-0061",
+      "TX-105-0062",
+      "TX-105-0063",
+      "TX-105-0064",
+      "TX-105-0065",
+      "TX-105-0066",
+      "TX-105-0067",
+      "TX-105-0068",
+      "TX-105-0069"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1006",
+    "alert_date": "2026-10-09",
+    "rule_id": "TM-JUR-02",
+    "rule_name": "Payments to higher-risk jurisdiction exceed £20,000 in a month",
+    "customer_id": "C106",
+    "priority": "MEDIUM",
+    "trigger_summary": "£24,800 SWIFT payment to a supplier in QM (higher-risk jurisdiction).",
+    "trigger_txn_ids": [
+      "TX-106-0053"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1007",
+    "alert_date": "2026-10-14",
+    "rule_id": "TM-VEL-01",
+    "rule_name": "30-day credit turnover above 250% of expected",
+    "customer_id": "C107",
+    "priority": "MEDIUM",
+    "trigger_summary": "30-day credits of about £59,000 against expected monthly turnover of £15,000.",
+    "trigger_txn_ids": [
+      "TX-107-0053",
+      "TX-107-0054",
+      "TX-107-0055",
+      "TX-107-0057",
+      "TX-107-0059",
+      "TX-107-0060",
+      "TX-107-0061",
+      "TX-107-0063"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1008",
+    "alert_date": "2026-10-03",
+    "rule_id": "TM-PEP-01",
+    "rule_name": "PEP receives international credit above £25,000",
+    "customer_id": "C108",
+    "priority": "HIGH",
+    "trigger_summary": "£95,000 SWIFT credit from a consultancy in QK referenced 'advisory services', £60,000 moved to a family trust 2 days later.",
+    "trigger_txn_ids": [
+      "TX-108-0037",
+      "TX-108-0038"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1009",
+    "alert_date": "2026-10-10",
+    "rule_id": "TM-CIRC-01",
+    "rule_name": "Repeated round-amount transfers returned by the same counterparty",
+    "customer_id": "C109",
+    "priority": "MEDIUM",
+    "trigger_summary": "3 round-amount payments (£50k, £75k, £50k) to a related company, each returned within 4 days less 1-2%.",
+    "trigger_txn_ids": [
+      "TX-109-0049",
+      "TX-109-0050",
+      "TX-109-0052",
+      "TX-109-0054",
+      "TX-109-0057",
+      "TX-109-0060"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1010",
+    "alert_date": "2026-10-06",
+    "rule_id": "TM-DORM-01",
+    "rule_name": "Dormant account (>180 days) receives credit above £5,000",
+    "customer_id": "C110",
+    "priority": "HIGH",
+    "trigger_summary": "Account inactive for over a year receives £18,500 from an unknown individual; £15,000 sent to a new payee within 2 hours, plus cash withdrawals.",
+    "trigger_txn_ids": [
+      "TX-110-0016",
+      "TX-110-0017",
+      "TX-110-0018",
+      "TX-110-0019",
+      "TX-110-0020",
+      "TX-110-0021"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1011",
+    "alert_date": "2026-10-02",
+    "rule_id": "TM-INC-02",
+    "rule_name": "Salary credits increased by more than 75% vs 6-month average",
+    "customer_id": "C111",
+    "priority": "LOW",
+    "trigger_summary": "Salary credits rose from about £3,520 to £6,450 per month, plus a £4,000 one-off credit from the same employer.",
+    "trigger_txn_ids": [
+      "TX-111-0044",
+      "TX-111-0045"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1012",
+    "alert_date": "2026-10-08",
+    "rule_id": "TM-NPO-03",
+    "rule_name": "Charity payment to individual not on approved beneficiary list",
+    "customer_id": "C112",
+    "priority": "MEDIUM",
+    "trigger_summary": "£12,000 Faster Payment to a private individual referenced 'consultancy', outside the approved beneficiary list.",
+    "trigger_txn_ids": [
+      "TX-112-0059"
+    ],
+    "status": "OPEN"
+  },
+  {
+    "alert_id": "ALT-1013",
+    "alert_date": "2026-10-13",
+    "rule_id": "TM-FUNNEL-02",
+    "rule_name": "New account receiving credits from more than 20 distinct individuals in 30 days",
+    "customer_id": "C113",
+    "priority": "LOW",
+    "trigger_summary": "34 Faster Payments from different individuals (£45-£320) in a 2-month-old business account.",
+    "trigger_txn_ids": [
+      "TX-113-0004",
+      "TX-113-0005",
+      "TX-113-0006",
+      "TX-113-0007",
+      "TX-113-0008",
+      "TX-113-0009",
+      "TX-113-0010",
+      "TX-113-0011",
+      "TX-113-0012",
+      "TX-113-0013",
+      "TX-113-0014",
+      "TX-113-0015",
+      "TX-113-0016",
+      "TX-113-0017",
+      "TX-113-0018",
+      "TX-113-0019",
+      "TX-113-0020",
+      "TX-113-0021",
+      "TX-113-0022",
+      "TX-113-0023",
+      "TX-113-0025",
+      "TX-113-0026",
+      "TX-113-0027",
+      "TX-113-0028",
+      "TX-113-0029",
+      "TX-113-0030",
+      "TX-113-0031",
+      "TX-113-0033",
+      "TX-113-0034",
+      "TX-113-0035",
+      "TX-113-0036",
+      "TX-113-0037",
+      "TX-113-0038",
+      "TX-113-0039",
+      "TX-113-0040"
+    ],
+    "status": "OPEN"
+  }
+]

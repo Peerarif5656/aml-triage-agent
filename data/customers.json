@@ -1,0 +1,581 @@
+[
+  {
+    "customer_id": "C101",
+    "name": "Gareth Pryce",
+    "customer_type": "individual",
+    "date_of_birth": "1979-05-21",
+    "nationality": "GB",
+    "occupation": "Self-employed landscape gardener (sole trader)",
+    "declared_annual_income": 38000,
+    "expected_monthly_inflow": 3200,
+    "account_opened": "2017-03-10",
+    "account_type": "Personal current account",
+    "risk_rating": "MEDIUM",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "known_counterparties": [
+      {
+        "name": "Hillcrest Housing Association",
+        "relationship": "grounds maintenance client"
+      },
+      {
+        "name": "Severn Building Society",
+        "relationship": "mortgage lender"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-2210 (2025 self-assessment tax return)"
+    ],
+    "kyc_notes": "Cash-intensive sole trader. Normally deposits weekly takings of £300-£900 at his home branch (Cardiff Queen St)."
+  },
+  {
+    "customer_id": "C102",
+    "name": "Priya Raman",
+    "customer_type": "individual",
+    "date_of_birth": "1985-11-02",
+    "nationality": "GB",
+    "occupation": "Staff nurse, NHS hospital trust",
+    "declared_annual_income": 41000,
+    "expected_monthly_inflow": 2700,
+    "account_opened": "2012-06-18",
+    "account_type": "Personal current account",
+    "risk_rating": "LOW",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "known_counterparties": [
+      {
+        "name": "University Hospitals NHS Trust",
+        "relationship": "employer"
+      },
+      {
+        "name": "P Raman - Cash ISA (own account)",
+        "relationship": "own account"
+      },
+      {
+        "name": "Midshire Building Society",
+        "relationship": "mortgage lender"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [
+      {
+        "type": "LARGE_INFLOW",
+        "counterparty": "Whitcombe & Lyle Solicitors LLP",
+        "approx_amount": 285000,
+        "evidence": "DOC-5531",
+        "note": "Sale of 14 Elm Road, Leicester. Customer informed branch on 2026-08-20; completion statement DOC-5531 on file."
+      }
+    ],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-5531 (property sale completion statement)",
+      "DOC-1874 (payslip)"
+    ],
+    "kyc_notes": "Long-standing low-risk customer. Salary paid monthly by NHS trust."
+  },
+  {
+    "customer_id": "C103",
+    "name": "Brightwater Marine Supplies Ltd",
+    "customer_type": "business",
+    "incorporation_date": "2009-06-15",
+    "country_of_incorporation": "GB",
+    "occupation": "Ship chandlery and marine equipment supply, Southampton",
+    "declared_annual_income": 4200000,
+    "expected_monthly_inflow": 350000,
+    "account_opened": "2009-07-01",
+    "account_type": "Business current account",
+    "risk_rating": "MEDIUM",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": "2026-01-20",
+    "directors": [
+      "Alan Whitcombe",
+      "Joanna Reyes"
+    ],
+    "known_counterparties": [
+      {
+        "name": "Solent Ferry Services Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "North Sea Tenders BV",
+        "relationship": "customer"
+      },
+      {
+        "name": "Fjordline Supply AS",
+        "relationship": "customer"
+      },
+      {
+        "name": "Itchen Harbour Pilots Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "Rotterdam Marine Parts BV",
+        "relationship": "supplier"
+      },
+      {
+        "name": "Hampshire Rope & Rigging Ltd",
+        "relationship": "supplier"
+      },
+      {
+        "name": "Bergen Deck Equipment AS",
+        "relationship": "supplier"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-3102 (2025 filed accounts)"
+    ],
+    "kyc_notes": "Established trading business. Suppliers in NL, NO and GB. No previous payments to higher-risk jurisdictions."
+  },
+  {
+    "customer_id": "C104",
+    "name": "Rebecca Hartmann",
+    "customer_type": "individual",
+    "date_of_birth": "1992-07-19",
+    "nationality": "GB",
+    "occupation": "Pharmacist",
+    "declared_annual_income": 52000,
+    "expected_monthly_inflow": 3100,
+    "account_opened": "2015-09-01",
+    "account_type": "Personal current account",
+    "risk_rating": "LOW",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "known_counterparties": [
+      {
+        "name": "Northern Pharmacy Group Ltd",
+        "relationship": "employer"
+      },
+      {
+        "name": "Pennine Building Society",
+        "relationship": "mortgage lender"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-0918 (UK passport, verified at onboarding)"
+    ],
+    "kyc_notes": "Low-risk salaried customer. Identity verified with UK passport."
+  },
+  {
+    "customer_id": "C105",
+    "name": "Liam Doherty",
+    "customer_type": "individual",
+    "date_of_birth": "2005-02-14",
+    "nationality": "GB",
+    "occupation": "Full-time student with part-time retail job",
+    "declared_annual_income": 6500,
+    "expected_monthly_inflow": 900,
+    "account_opened": "2023-09-05",
+    "account_type": "Student current account",
+    "risk_rating": "LOW",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "known_counterparties": [
+      {
+        "name": "Brightmart Retail Ltd",
+        "relationship": "employer"
+      },
+      {
+        "name": "Student Loans Company",
+        "relationship": "maintenance loan"
+      },
+      {
+        "name": "S Doherty",
+        "relationship": "mother"
+      },
+      {
+        "name": "Castlegate Student Living Ltd",
+        "relationship": "landlord"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-6620 (student enrolment letter)"
+    ],
+    "kyc_notes": "Student account. Income from part-time job, maintenance loan and occasional transfers from mother."
+  },
+  {
+    "customer_id": "C106",
+    "name": "Meridian Spice Imports Ltd",
+    "customer_type": "business",
+    "incorporation_date": "2014-04-02",
+    "country_of_incorporation": "GB",
+    "occupation": "Import and wholesale of spices and dried goods, Coventry",
+    "declared_annual_income": 1100000,
+    "expected_monthly_inflow": 92000,
+    "account_opened": "2014-05-12",
+    "account_type": "Business current account",
+    "risk_rating": "HIGH",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": "2026-03-18",
+    "directors": [
+      "Farid Qureshi",
+      "Helen Marsh"
+    ],
+    "known_counterparties": [
+      {
+        "name": "Saffron Valley Agro Exports",
+        "relationship": "primary supplier (QM) since 2016; EDD verified"
+      },
+      {
+        "name": "Felixstowe Freight Services Ltd",
+        "relationship": "logistics"
+      },
+      {
+        "name": "Northfield Cash & Carry Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "Spice Route Restaurants Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "Midlands Foodservice Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "Harbour Deli Group Ltd",
+        "relationship": "customer"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-4417 (EDD review March 2026: supplier site visit report and contracts)",
+      "DOC-4420 (supplier invoices Jan-Mar 2026)"
+    ],
+    "kyc_notes": "High risk due to supply chain in a higher-risk jurisdiction. EDD completed March 2026: supplier verified, payments expected monthly at £20k-£30k against invoices."
+  },
+  {
+    "customer_id": "C107",
+    "name": "The Copper Kettle Cafe Ltd",
+    "customer_type": "business",
+    "incorporation_date": "2019-05-01",
+    "country_of_incorporation": "GB",
+    "occupation": "Independent cafe, York",
+    "declared_annual_income": 180000,
+    "expected_monthly_inflow": 15000,
+    "account_opened": "2019-05-20",
+    "account_type": "Business current account",
+    "risk_rating": "LOW",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "directors": [
+      "Sophie Blake"
+    ],
+    "known_counterparties": [
+      {
+        "name": "Card acquirer settlement",
+        "relationship": "card takings"
+      },
+      {
+        "name": "Yorkshire Bakery Supplies Ltd",
+        "relationship": "supplier"
+      },
+      {
+        "name": "Dales Dairy Ltd",
+        "relationship": "supplier"
+      },
+      {
+        "name": "Stonegate Estates Ltd",
+        "relationship": "landlord"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-2789 (2025 filed accounts)"
+    ],
+    "kyc_notes": "Single-site cafe. Card takings settled weekly; small monthly cash deposits."
+  },
+  {
+    "customer_id": "C108",
+    "name": "Jonathan Ellery-Pike",
+    "customer_type": "individual",
+    "date_of_birth": "1968-09-03",
+    "nationality": "GB",
+    "occupation": "Member of Parliament",
+    "declared_annual_income": 93000,
+    "expected_monthly_inflow": 5600,
+    "account_opened": "2008-02-11",
+    "account_type": "Premier current account",
+    "risk_rating": "HIGH",
+    "pep": true,
+    "pep_details": "Domestic PEP: sitting Member of Parliament since 2019",
+    "edd_last_review": "2026-02-02",
+    "known_counterparties": [
+      {
+        "name": "House of Commons (members' pay)",
+        "relationship": "salary"
+      },
+      {
+        "name": "Westminster Mutual Building Society",
+        "relationship": "mortgage lender"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-3390 (PEP EDD review Feb 2026: source of wealth = salary and savings)"
+    ],
+    "kyc_notes": "Domestic PEP. Source of wealth documented as parliamentary salary and savings. No declared external business interests."
+  },
+  {
+    "customer_id": "C109",
+    "name": "Northgate Fabrication Ltd",
+    "customer_type": "business",
+    "incorporation_date": "2011-03-22",
+    "country_of_incorporation": "GB",
+    "occupation": "Structural steel fabrication, Sheffield",
+    "declared_annual_income": 2400000,
+    "expected_monthly_inflow": 200000,
+    "account_opened": "2011-04-04",
+    "account_type": "Business current account",
+    "risk_rating": "MEDIUM",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "directors": [
+      "Paul Hendry",
+      "Simone Hendry"
+    ],
+    "known_counterparties": [
+      {
+        "name": "NGF Holdings Ltd",
+        "relationship": "related company: common director Paul Hendry"
+      },
+      {
+        "name": "Ardent Rail Components Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "Pennine Construction Group Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "Humber Offshore Structures Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "Trent Valley Plant Hire Ltd",
+        "relationship": "customer"
+      },
+      {
+        "name": "Sheffield Steel Stockholders Ltd",
+        "relationship": "supplier"
+      },
+      {
+        "name": "Don Valley Coatings Ltd",
+        "relationship": "supplier"
+      }
+    ],
+    "related_parties": [
+      "NGF Holdings Ltd"
+    ],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-2954 (2025 filed accounts)"
+    ],
+    "kyc_notes": "Established manufacturer. No intercompany loan arrangements disclosed to the bank."
+  },
+  {
+    "customer_id": "C110",
+    "name": "Harold Benning",
+    "customer_type": "individual",
+    "date_of_birth": "1947-01-11",
+    "nationality": "GB",
+    "occupation": "Retired",
+    "declared_annual_income": 21000,
+    "expected_monthly_inflow": 300,
+    "account_opened": "1994-08-30",
+    "account_type": "Personal current account (secondary)",
+    "risk_rating": "LOW",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "known_counterparties": [
+      {
+        "name": "State Pension (DWP)",
+        "relationship": "pension (moved to another bank Sept 2025)"
+      },
+      {
+        "name": "H Benning - Coastal Mutual (own account)",
+        "relationship": "own account"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [
+      {
+        "date": "2026-10-02",
+        "change": "Mobile number and email address changed via online banking"
+      },
+      {
+        "date": "2026-10-03",
+        "change": "New payee added: R Mensah"
+      }
+    ],
+    "documents_on_file": [],
+    "kyc_notes": "Elderly customer. Pension moved to another provider in Sept 2025; this account has been inactive since."
+  },
+  {
+    "customer_id": "C111",
+    "name": "Aisha Karim",
+    "customer_type": "individual",
+    "date_of_birth": "1994-04-27",
+    "nationality": "GB",
+    "occupation": "Senior software engineer",
+    "declared_annual_income": 112000,
+    "expected_monthly_inflow": 6600,
+    "account_opened": "2016-10-03",
+    "account_type": "Personal current account",
+    "risk_rating": "LOW",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "known_counterparties": [
+      {
+        "name": "Ledgerline Technologies Ltd",
+        "relationship": "employer from Sept 2026"
+      },
+      {
+        "name": "Corvel Systems Ltd",
+        "relationship": "previous employer"
+      },
+      {
+        "name": "Canal Quarter Lettings Ltd",
+        "relationship": "landlord"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [
+      {
+        "type": "INCOME_CHANGE",
+        "counterparty": "Ledgerline Technologies Ltd",
+        "approx_amount": 6450,
+        "evidence": "DOC-7781",
+        "note": "New role from Sept 2026. Offer letter and payslip DOC-7781 verified; KYC refreshed 2026-08-14."
+      }
+    ],
+    "recent_profile_changes": [
+      {
+        "date": "2026-08-14",
+        "change": "Employment and income updated (KYC refresh)"
+      }
+    ],
+    "documents_on_file": [
+      "DOC-7781 (offer letter and first payslip, Ledgerline Technologies)"
+    ],
+    "kyc_notes": "Changed employer in Sept 2026; declared income updated from £58,000 to £112,000."
+  },
+  {
+    "customer_id": "C112",
+    "name": "Hope Bridge Relief Foundation",
+    "customer_type": "charity",
+    "incorporation_date": "2017-02-09",
+    "country_of_incorporation": "GB",
+    "occupation": "Registered charity: water and education grants in QV",
+    "declared_annual_income": 1600000,
+    "expected_monthly_inflow": 130000,
+    "account_opened": "2017-03-01",
+    "account_type": "Charity current account",
+    "risk_rating": "HIGH",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": "2026-05-10",
+    "directors": [
+      "Ruth Okoye (chair of trustees)",
+      "Martin Fell (treasurer)"
+    ],
+    "known_counterparties": [
+      {
+        "name": "Hope Bridge Field Office",
+        "relationship": "own programme office in QV; EDD verified"
+      },
+      {
+        "name": "Clearwater Wells Partnership",
+        "relationship": "approved implementing partner in QV"
+      },
+      {
+        "name": "GiveRight Donations Platform",
+        "relationship": "online donations"
+      },
+      {
+        "name": "HMRC Gift Aid",
+        "relationship": "tax reclaim"
+      },
+      {
+        "name": "Bristol Harbourside Offices Ltd",
+        "relationship": "landlord"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-5120 (EDD review May 2026: approved beneficiary list and grant agreements)"
+    ],
+    "kyc_notes": "Charity operating in a higher-risk jurisdiction. Approved beneficiaries: Hope Bridge Field Office and Clearwater Wells Partnership only. Payments to individuals are not expected."
+  },
+  {
+    "customer_id": "C113",
+    "name": "Lumen Ticketing Ltd",
+    "customer_type": "business",
+    "incorporation_date": "2026-07-08",
+    "country_of_incorporation": "GB",
+    "occupation": "Online ticket sales for local music events, Manchester",
+    "declared_annual_income": 60000,
+    "expected_monthly_inflow": 5000,
+    "account_opened": "2026-08-01",
+    "account_type": "Business current account",
+    "risk_rating": "MEDIUM",
+    "pep": false,
+    "pep_details": null,
+    "edd_last_review": null,
+    "directors": [
+      "Kieran Walsh"
+    ],
+    "known_counterparties": [
+      {
+        "name": "Kieran Walsh",
+        "relationship": "sole director"
+      },
+      {
+        "name": "Hostwell Web Services Ltd",
+        "relationship": "website hosting"
+      },
+      {
+        "name": "Northern Quarter Live Ltd",
+        "relationship": "venue"
+      }
+    ],
+    "related_parties": [],
+    "expected_events": [],
+    "recent_profile_changes": [],
+    "documents_on_file": [
+      "DOC-8012 (certificate of incorporation)"
+    ],
+    "kyc_notes": "New business. Declared that ticket sales are taken through the company website via a card payment processor."
+  }
+]

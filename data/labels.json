@@ -1,0 +1,54 @@
+{
+  "ALT-1001": {
+    "disposition": "ESCALATE",
+    "rationale": "Classic structuring pattern across multiple branches, far above the customer's normal takings, with funds consolidated and moved on. Refer to MLRO for SAR consideration."
+  },
+  "ALT-1002": {
+    "disposition": "CLOSE",
+    "rationale": "Credit matches the documented property sale (completion statement DOC-5531, amount and solicitor match). Funds moved to the customer's own ISA. No further action."
+  },
+  "ALT-1003": {
+    "disposition": "ESCALATE",
+    "rationale": "Beneficiary name and country match designated entity SAN-0041. Potential true sanctions match: hold payment and refer to the sanctions team; L1 closure not permitted."
+  },
+  "ALT-1004": {
+    "disposition": "CLOSE",
+    "rationale": "Name similarity only. Listed person SAN-0107 was born in 1949 with QM nationality; customer was born in 1992, is a GB national verified by passport. False positive; close and record rationale."
+  },
+  "ALT-1005": {
+    "disposition": "ESCALATE",
+    "rationale": "Strong money mule indicators: new unrelated payers, near-total onward movement within hours to a crypto exchange and ATM. Refer to MLRO; consider account restriction."
+  },
+  "ALT-1006": {
+    "disposition": "CLOSE",
+    "rationale": "Payment is to the long-standing supplier verified in the March 2026 EDD review (DOC-4417), invoice-referenced and in line with 6 months of history. No further action."
+  },
+  "ALT-1007": {
+    "disposition": "RFI",
+    "rationale": "Turnover roughly quadrupled with no explanation on file. Not clearly suspicious for a cafe (could be a new contract or event), so request an explanation and evidence from the customer."
+  },
+  "ALT-1008": {
+    "disposition": "ESCALATE",
+    "rationale": "Large offshore payment to a PEP, inconsistent with the documented source of wealth and with no declared business interests; funds layered to a trust. Escalate for EDD and SAR consideration."
+  },
+  "ALT-1009": {
+    "disposition": "ESCALATE",
+    "rationale": "Round-tripping with a related party: round amounts out, near-identical amounts back with changing references, no disclosed business rationale. Escalate for investigation."
+  },
+  "ALT-1010": {
+    "disposition": "ESCALATE",
+    "rationale": "Contact details changed and a new payee added days before reactivation, then rapid outflow: indicates account takeover or the account being used as a mule. Escalate and restrict account."
+  },
+  "ALT-1011": {
+    "disposition": "CLOSE",
+    "rationale": "Income change documented and verified (DOC-7781, KYC refresh Aug 2026). One-off credit is a sign-on bonus from the same employer. No further action."
+  },
+  "ALT-1012": {
+    "disposition": "RFI",
+    "rationale": "Grant payments to QV partners are consistent with EDD. The £12,000 payment to an individual is not covered by the approved list; request the consultancy contract and trustee approval before deciding."
+  },
+  "ALT-1013": {
+    "disposition": "RFI",
+    "rationale": "Consistent with ticket sales in value, but the customer declared sales go through a card processor, not direct bank transfers. Request an explanation and sales records before deciding."
+  }
+}

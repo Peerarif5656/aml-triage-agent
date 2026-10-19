@@ -1,0 +1,160 @@
+[
+  {
+    "sanctions_id": "SAN-0012",
+    "name": "VORANTH, Kesimir Dalovic",
+    "type": "individual",
+    "dob": "1963-04-11",
+    "nationality": "QV",
+    "country": "QV",
+    "aliases": [
+      "Kasimir Voranth"
+    ],
+    "programme": "Illustrative regime: QV conflict",
+    "listed_on": "2023-05-02"
+  },
+  {
+    "sanctions_id": "SAN-0019",
+    "name": "Ostrel Bank",
+    "type": "entity",
+    "dob": null,
+    "nationality": null,
+    "country": "QM",
+    "aliases": [
+      "Ostrel Commercial Bank"
+    ],
+    "programme": "Illustrative regime: QM financial",
+    "listed_on": "2022-11-19"
+  },
+  {
+    "sanctions_id": "SAN-0023",
+    "name": "MERRADINE, Tovic",
+    "type": "individual",
+    "dob": "1971-12-01",
+    "nationality": "QK",
+    "country": "QK",
+    "aliases": [],
+    "programme": "Illustrative regime: QK maritime",
+    "listed_on": "2024-03-08"
+  },
+  {
+    "sanctions_id": "SAN-0031",
+    "name": "Kalvaro Holdings Ltd",
+    "type": "entity",
+    "dob": null,
+    "nationality": null,
+    "country": "QK",
+    "aliases": [
+      "Kalvaro Group"
+    ],
+    "programme": "Illustrative regime: QK maritime",
+    "listed_on": "2024-03-08"
+  },
+  {
+    "sanctions_id": "SAN-0041",
+    "name": "ZAROVEL SHIPPING AND TRADING FZE",
+    "type": "entity",
+    "dob": null,
+    "nationality": null,
+    "country": "QK",
+    "aliases": [
+      "Zarovel Shpg & Trdg",
+      "Zarovel Marine FZE"
+    ],
+    "programme": "Illustrative regime: QK maritime",
+    "listed_on": "2025-02-11"
+  },
+  {
+    "sanctions_id": "SAN-0055",
+    "name": "IRSKAYA, Luda Fenn",
+    "type": "individual",
+    "dob": "1980-06-23",
+    "nationality": "QM",
+    "country": "QM",
+    "aliases": [],
+    "programme": "Illustrative regime: QM financial",
+    "listed_on": "2023-09-30"
+  },
+  {
+    "sanctions_id": "SAN-0062",
+    "name": "Pellucid Arms Brokerage",
+    "type": "entity",
+    "dob": null,
+    "nationality": null,
+    "country": "QV",
+    "aliases": [
+      "Pellucid Defence Trading"
+    ],
+    "programme": "Illustrative regime: QV conflict",
+    "listed_on": "2023-05-02"
+  },
+  {
+    "sanctions_id": "SAN-0078",
+    "name": "DRESSEL, Anton Moritz",
+    "type": "individual",
+    "dob": "1958-02-17",
+    "nationality": "QK",
+    "country": "QK",
+    "aliases": [],
+    "programme": "Illustrative regime: QK maritime",
+    "listed_on": "2025-02-11"
+  },
+  {
+    "sanctions_id": "SAN-0091",
+    "name": "Tessaly Petrochemical Trading",
+    "type": "entity",
+    "dob": null,
+    "nationality": null,
+    "country": "QK",
+    "aliases": [],
+    "programme": "Illustrative regime: QK maritime",
+    "listed_on": "2024-07-15"
+  },
+  {
+    "sanctions_id": "SAN-0107",
+    "name": "HARTMAN, Rebekka",
+    "type": "individual",
+    "dob": "1949-01-30",
+    "nationality": "QM",
+    "country": "QM",
+    "aliases": [
+      "Rebeka Hartmanova"
+    ],
+    "programme": "Illustrative regime: QM financial",
+    "listed_on": "2022-11-19"
+  },
+  {
+    "sanctions_id": "SAN-0113",
+    "name": "OKONDRA, Selim Varr",
+    "type": "individual",
+    "dob": "1975-10-09",
+    "nationality": "QV",
+    "country": "QV",
+    "aliases": [],
+    "programme": "Illustrative regime: QV conflict",
+    "listed_on": "2023-05-02"
+  },
+  {
+    "sanctions_id": "SAN-0120",
+    "name": "Greyfen Maritime Services",
+    "type": "entity",
+    "dob": null,
+    "nationality": null,
+    "country": "QK",
+    "aliases": [
+      "Greyfen Marine"
+    ],
+    "programme": "Illustrative regime: QK maritime",
+    "listed_on": "2025-02-11"
+  },
+  {
+    "sanctions_id": "SAN-0126",
+    "name": "Novarre Metals Exchange",
+    "type": "entity",
+    "dob": null,
+    "nationality": null,
+    "country": "QM",
+    "aliases": [],
+    "programme": "Illustrative regime: QM financial",
+    "listed_on": "2024-01-22"
+  }
+]

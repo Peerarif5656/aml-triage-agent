@@ -1,0 +1,992 @@
+<title>AML Alert Triage Agent</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: case console. A queue rail beside the open case file; the disposition stamp is the one loud element. */
+:root {
+  --bg: #f2f4f8;
+  --surface: #ffffff;
+  --surface-2: #e9edf5;
+  --ink: #141b2d;
+  --ink-2: #4b5671;
+  --ink-3: #6f7a93;
+  --line: #d6dce8;
+  --accent: #2747a8;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2e8fa;
+  --esc: #b42318;  --esc-soft: #fdeceb;
+  --rfi: #9a5400;  --rfi-soft: #fff1d9;
+  --close: #11704a; --close-soft: #e2f4ea;
+  --shadow: 0 1px 2px rgba(20, 27, 45, .06), 0 4px 16px rgba(20, 27, 45, .05);
+  --font-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Public Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d121c; --surface: #141b29; --surface-2: #1b2435; --ink: #e5e9f2; --ink-2: #a5afc4; --ink-3: #7d889f;
+    --line: #283247; --accent: #8ea8ff; --accent-ink: #0d121c; --accent-soft: #1d2846;
+    --esc: #ff8f80; --esc-soft: #3a1c1b; --rfi: #f4b860; --rfi-soft: #382913; --close: #63d39d; --close-soft: #12301f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d121c; --surface: #141b29; --surface-2: #1b2435; --ink: #e5e9f2; --ink-2: #a5afc4; --ink-3: #7d889f;
+  --line: #283247; --accent: #8ea8ff; --accent-ink: #0d121c; --accent-soft: #1d2846;
+  --esc: #ff8f80; --esc-soft: #3a1c1b; --rfi: #f4b860; --rfi-soft: #382913; --close: #63d39d; --close-soft: #12301f;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+h1, h2, h3 { font-family: var(--font-display); font-stretch: 85%; text-wrap: balance; margin: 0; line-height: 1.15; }
+h2 { font-size: 1.05rem; font-weight: 700; letter-spacing: .01em; }
+h3 { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--ink-2); font-stretch: 100%; font-family: var(--font-body); }
+p { margin: 0; }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1440px; margin: 0 auto; }
+
+/* ---------- top bar */
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; padding-block: 10px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.brand svg { flex: none; }
+.brand h1 { font-size: 1.2rem; font-weight: 800; font-stretch: 78%; letter-spacing: .01em; }
+.brand small { display: block; font: 500 .72rem/1.2 var(--font-body); color: var(--ink-3); letter-spacing: .02em; }
+.nav { display: flex; gap: 2px; background: var(--surface-2); padding: 3px; border-radius: 9px; }
+.nav a { padding: 6px 12px; border-radius: 7px; text-decoration: none; color: var(--ink-2); font-weight: 600; font-size: .86rem; }
+.nav a[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.pill-note { font-size: .74rem; font-weight: 600; color: var(--ink-2); border: 1px dashed var(--line); padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+
+main { padding-block: 20px 40px; }
+.view[hidden] { display: none !important; }
+
+/* ---------- cases layout */
+.cases { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 980px) { .cases { grid-template-columns: minmax(0, 1fr); } }
+
+.queue { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 72px); }
+.queue header { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.queue header span { font-size: .78rem; color: var(--ink-3); }
+.queue ol { list-style: none; margin: 0; padding: 0; max-height: calc(100vh - 170px); overflow-y: auto; }
+@media (max-width: 980px) { .queue { position: static; } .queue ol { max-height: 280px; } }
+.queue li + li { border-top: 1px solid var(--line); }
+.qitem { width: 100%; text-align: left; background: none; border: 0; padding: 10px 14px; cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; }
+.qitem:hover { background: var(--surface-2); }
+.qitem[aria-current="true"] { background: var(--accent-soft); }
+.qitem .qid { font: 600 .78rem var(--font-mono); color: var(--ink-2); }
+.qitem .qcust { font-weight: 600; font-size: .9rem; grid-column: 1; min-width: 0; }
+.qitem .qrule { font-size: .78rem; color: var(--ink-3); grid-column: 1 / -1; line-height: 1.35; }
+.qitem .qstatus { grid-row: 1 / span 2; grid-column: 2; align-self: start; }
+
+.tag { display: inline-flex; align-items: center; gap: 4px; font: 700 .68rem/1 var(--font-body); letter-spacing: .07em; text-transform: uppercase; padding: 4px 7px; border-radius: 5px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.tag.ESCALATE { background: var(--esc-soft); color: var(--esc); }
+.tag.RFI { background: var(--rfi-soft); color: var(--rfi); }
+.tag.CLOSE { background: var(--close-soft); color: var(--close); }
+.tag.done::before { content: "✓"; }
+
+/* ---------- case file */
+.case { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; min-width: 0; }
+.case-head { display: grid; gap: 12px; }
+.case-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.case-title h2 { font-size: 1.45rem; font-weight: 800; font-stretch: 80%; }
+.case-title .mono { color: var(--ink-3); font-size: .85rem; }
+.trigger { color: var(--ink-2); max-width: 75ch; }
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px 18px; margin: 0; }
+.facts div { min-width: 0; }
+.facts dt { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 600; }
+.facts dd { margin: 2px 0 0; font-weight: 600; font-size: .9rem; overflow-wrap: anywhere; }
+
+.runbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; padding: 3px; gap: 3px; background: var(--surface-2); flex-wrap: wrap; }
+.seg label { position: relative; cursor: pointer; }
+.seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.seg span { display: block; padding: 7px 12px; border-radius: 7px; font-weight: 600; font-size: .86rem; color: var(--ink-2); }
+.seg input:checked + span { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+.seg input:disabled + span { opacity: .45; cursor: not-allowed; }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 9px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.runhint { flex-basis: 100%; font-size: .82rem; color: var(--ink-3); max-width: 80ch; }
+
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1180px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* recommendation */
+.rec { display: grid; gap: 16px; }
+.rec-top { display: flex; flex-wrap: wrap; gap: 18px 26px; align-items: center; }
+.stamp { font-family: var(--font-display); font-stretch: 70%; font-weight: 800; font-size: 2.1rem; letter-spacing: .1em; text-transform: uppercase;
+  padding: 6px 18px 4px; border: 3px solid currentColor; border-radius: 6px; transform: rotate(-4deg);
+  box-shadow: inset 0 0 0 2px var(--surface), inset 0 0 0 4px currentColor; line-height: 1.1; }
+.stamp.ESCALATE { color: var(--esc); background: var(--esc-soft); }
+.stamp.RFI { color: var(--rfi); background: var(--rfi-soft); }
+.stamp.CLOSE { color: var(--close); background: var(--close-soft); }
+.stamp.pending { color: var(--ink-3); background: var(--surface-2); font-size: 1.3rem; }
+.stamp.thud { animation: thud .38s cubic-bezier(.2, .9, .3, 1.3); }
+@keyframes thud { from { transform: rotate(-4deg) scale(1.5); opacity: .2; } to { transform: rotate(-4deg) scale(1); opacity: 1; } }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 20px; flex: 1; min-width: 220px; }
+.kpi .k { font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-3); font-weight: 600; }
+.kpi .v { font: 600 1.05rem var(--font-mono); font-variant-numeric: tabular-nums; }
+.kpi .v small { font: 500 .78rem var(--font-body); color: var(--ink-3); }
+
+.meter { display: grid; gap: 6px; }
+.meter-track { position: relative; height: 12px; border-radius: 6px; overflow: visible;
+  background: linear-gradient(90deg, var(--close-soft) 0 20%, var(--rfi-soft) 20% 60%, var(--esc-soft) 60% 100%); border: 1px solid var(--line); }
+.meter-tick { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--ink-3); }
+.meter-mark { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%); background: var(--ink); border: 2px solid var(--surface); box-shadow: var(--shadow); transition: left .5s ease; }
+.meter-mark.rules { width: 10px; height: 10px; border-radius: 2px; transform: translate(-50%, -50%) rotate(45deg); background: var(--accent); top: calc(50% + 13px); }
+.meter-scale { position: relative; height: 16px; font: 500 .68rem var(--font-mono); color: var(--ink-3); margin-top: 16px; }
+.meter-scale span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.meter-scale span:first-child { transform: none; }
+.meter-scale span:last-child { transform: translateX(-100%); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .76rem; color: var(--ink-3); }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--ink); margin-right: 5px; vertical-align: -1px; }
+.legend i.rules { border-radius: 2px; transform: rotate(45deg); background: var(--accent); }
+
+.flags { display: grid; gap: 8px; }
+.flag { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; padding: 9px 12px; border-radius: 8px; background: var(--surface-2); font-size: .86rem; }
+.flag b { font: 600 .74rem var(--font-mono); }
+.flag.CRITICAL { background: var(--esc-soft); } .flag.CRITICAL b { color: var(--esc); }
+.flag.WARN, .flag.HIGH { background: var(--rfi-soft); } .flag.WARN b, .flag.HIGH b { color: var(--rfi); }
+.flag.INFO b { color: var(--accent); }
+
+.items { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.items li { display: grid; gap: 5px; padding-left: 14px; border-left: 2px solid var(--line); min-width: 0; }
+.items li p { overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { font: 500 .72rem var(--font-mono); padding: 2px 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); cursor: default; }
+button.chip { cursor: pointer; }
+button.chip:hover { border-color: var(--accent); color: var(--accent); }
+.empty { color: var(--ink-3); font-style: italic; font-size: .88rem; }
+.section { display: grid; gap: 10px; }
+.label-line { font-size: .82rem; color: var(--ink-3); }
+.label-line b { color: var(--ink); }
+
+/* trace */
+.trace { display: grid; gap: 10px; }
+.trace-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.trace ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 560px; overflow-y: auto; }
+.trace li { display: grid; grid-template-columns: 58px 74px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 6px 4px; border-bottom: 1px dashed var(--line); font-size: .84rem; }
+.trace li:last-child { border-bottom: 0; }
+.trace .ms { font: 500 .72rem var(--font-mono); color: var(--ink-3); text-align: right; font-variant-numeric: tabular-nums; }
+.trace .actor { font: 700 .62rem/1.6 var(--font-body); letter-spacing: .08em; text-transform: uppercase; text-align: center; border-radius: 4px; padding: 0 4px; background: var(--surface-2); color: var(--ink-2); }
+.trace .actor.TOOL { background: var(--accent-soft); color: var(--accent); }
+.trace .actor.CONTROL { background: var(--rfi-soft); color: var(--rfi); }
+.trace .actor.ANALYST { background: var(--close-soft); color: var(--close); }
+.trace .what { min-width: 0; overflow-wrap: anywhere; }
+.trace .what code { font: 600 .78rem var(--font-mono); }
+.trace .what span { color: var(--ink-2); }
+.thinking .what::after { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: 8px; animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (max-width: 520px) { .trace li { grid-template-columns: 50px minmax(0, 1fr); } .trace .actor { grid-column: 2; justify-self: start; } .trace .what { grid-column: 1 / -1; } }
+
+/* narrative + decision */
+.decision form { display: grid; gap: 12px; }
+textarea, input[type="text"], select { width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 9px 11px; }
+textarea { min-height: 150px; resize: vertical; line-height: 1.5; }
+.formrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.field { display: grid; gap: 5px; font-size: .82rem; font-weight: 600; color: var(--ink-2); min-width: 0; }
+.radios { display: flex; gap: 14px; flex-wrap: wrap; font-weight: 500; color: var(--ink); }
+.radios label { display: flex; gap: 6px; align-items: center; }
+.formactions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.msg { font-size: .84rem; }
+.msg.err { color: var(--esc); } .msg.ok { color: var(--close); }
+.decided { padding: 12px 14px; border-radius: 8px; background: var(--close-soft); color: var(--ink); }
+#copy-fallback { min-height: 220px; font: .78rem/1.5 var(--font-mono); }
+
+/* tables */
+details > summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+details > summary::-webkit-details-marker { display: none; }
+details > summary::after { content: "Show"; font-size: .78rem; color: var(--accent); font-weight: 600; }
+details[open] > summary::after { content: "Hide"; }
+.tablewrap { overflow-x: auto; margin-top: 12px; max-height: 420px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: .82rem; }
+th { position: sticky; top: 0; background: var(--surface-2); text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-2); padding: 8px 10px; white-space: nowrap; z-index: 1; }
+td { padding: 6px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.id, td.date { font-family: var(--font-mono); font-size: .76rem; white-space: nowrap; }
+tr.trigger td { background: var(--accent-soft); }
+tr.flash td { animation: flash 1.6s ease; }
+@keyframes flash { 0%, 30% { background: var(--rfi-soft); } }
+.in { color: var(--close); } .out { color: var(--ink-2); }
+
+/* evaluation */
+.eval { display: grid; gap: 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; }
+.tile .v { font: 700 1.9rem/1.1 var(--font-display); font-stretch: 80%; font-variant-numeric: tabular-nums; }
+.tile .k { font-size: .78rem; color: var(--ink-2); font-weight: 600; }
+.tile p { font-size: .78rem; color: var(--ink-3); margin-top: 4px; }
+.cm { border-collapse: separate; border-spacing: 4px; width: auto; }
+.cm td, .cm th { text-align: center; border: 0; border-radius: 6px; padding: 10px 14px; position: static; }
+.cm th { background: none; }
+.cm td { font: 600 1rem var(--font-mono); background: var(--surface-2); }
+.cm td.diag { background: var(--close-soft); color: var(--close); }
+.cm td.miss { background: var(--esc-soft); color: var(--esc); }
+.prose { max-width: 72ch; display: grid; gap: 10px; color: var(--ink-2); }
+.prose strong { color: var(--ink); }
+
+/* how it works */
+.flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.flow > div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px; position: relative; display: grid; gap: 4px; align-content: start; }
+.flow > div:not(:last-child)::after { content: "→"; position: absolute; right: -10px; top: 50%; transform: translate(50%, -50%); color: var(--ink-3); font-weight: 700; }
+.flow b { font-family: var(--font-display); font-stretch: 85%; font-size: 1rem; }
+.flow span { font-size: .8rem; color: var(--ink-2); }
+.flow .hl { border-color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 860px) { .flow { grid-template-columns: minmax(0, 1fr); } .flow > div:not(:last-child)::after { content: "↓"; right: 50%; top: auto; bottom: -12px; transform: translate(50%, 50%); } }
+.twocol { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.deftable td:first-child { font: 600 .78rem var(--font-mono); white-space: nowrap; color: var(--accent); }
+
+footer { border-top: 1px solid var(--line); color: var(--ink-3); font-size: .8rem; }
+footer .wrap { padding-block: 16px; display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: space-between; }
+footer a { color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="1.5" y="1.5" width="27" height="27" rx="7" fill="none" stroke="var(--accent)" stroke-width="2.5"/><path d="M8 15.5l4.3 4.3L22 10" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><h1>AML Alert Triage Agent</h1><small>Agentic investigator for transaction monitoring &amp; sanctions alerts</small></div>
+    </div>
+    <nav class="nav" aria-label="Views">
+      <a href="#cases" data-view="cases">Cases</a>
+      <a href="#evaluation" data-view="evaluation">Evaluation</a>
+      <a href="#how" data-view="how">How it works</a>
+    </nav>
+    <span class="pill-note">Synthetic data · fictional sanctions list</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ======================================================== CASES -->
+  <section class="view" id="view-cases" aria-label="Cases">
+    <div class="cases">
+      <aside class="queue" aria-label="Alert queue">
+        <header><h2>Alert queue</h2><span id="queue-count"></span></header>
+        <ol id="queue"></ol>
+      </aside>
+
+      <div class="case">
+        <section class="panel case-head" aria-labelledby="case-title">
+          <div class="case-title">
+            <h2 id="case-title"></h2>
+            <span class="mono" id="case-meta"></span>
+            <span class="tag" id="case-priority"></span>
+          </div>
+          <p class="trigger" id="case-trigger"></p>
+          <dl class="facts" id="case-facts"></dl>
+        </section>
+
+        <section class="panel runbar" aria-label="Run investigation">
+          <div class="seg" role="radiogroup" aria-label="Investigator">
+            <label><input type="radio" name="mode" id="mode-offline" value="offline" checked><span>Offline investigator</span></label>
+            <label><input type="radio" name="mode" id="mode-claude" value="claude"><span>Claude agent (live)</span></label>
+          </div>
+          <button class="btn primary" id="run">Run investigation</button>
+          <button class="btn" id="stop" hidden>Stop</button>
+          <p class="runhint" id="runhint"></p>
+        </section>
+
+        <div class="grid2">
+          <section class="panel rec" aria-label="Recommendation" id="rec"></section>
+          <section class="panel trace" aria-label="Investigation trace">
+            <div class="trace-head"><h3>Investigation trace</h3><span class="label-line mono" id="trace-meta"></span></div>
+            <ol id="trace"></ol>
+          </section>
+        </div>
+
+        <section class="panel decision" aria-label="Analyst decision" id="decision"></section>
+
+        <section class="panel">
+          <details id="txn-details">
+            <summary><h3>Customer transactions · 90 days to alert date</h3></summary>
+            <div class="tablewrap" id="txn-wrap"></div>
+          </details>
+        </section>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================== EVALUATION -->
+  <section class="view eval" id="view-evaluation" aria-label="Evaluation" hidden>
+    <div class="prose">
+      <h2 style="font-size:1.45rem;font-weight:800;font-stretch:80%;color:var(--ink)">Evaluation against analyst-labelled alerts</h2>
+      <p>Each of the 13 alerts carries a disposition set by a senior analyst. The headline metric is <strong>escalation recall</strong>: in AML, closing a case that should have been escalated is the most expensive mistake. <strong>Grounding</strong> measures whether every identifier the investigator cites was actually returned by a tool.</p>
+    </div>
+    <div class="tiles" id="eval-tiles"></div>
+    <div class="twocol">
+      <section class="panel section">
+        <h3>Confusion matrix · offline investigator</h3>
+        <div style="overflow-x:auto"><table class="cm" id="eval-cm"></table></div>
+        <p class="label-line">Rows are the analyst label, columns the recommendation. The rules engine was calibrated on this synthetic set, so treat its score as a sanity check. The informative test is the LLM agent against the same labels.</p>
+      </section>
+      <section class="panel section">
+        <h3>Claude agent runs in this session</h3>
+        <div id="claude-runs"></div>
+      </section>
+    </div>
+    <section class="panel section">
+      <h3>Per-alert results · offline investigator</h3>
+      <div class="tablewrap" id="eval-rows"></div>
+    </section>
+  </section>
+
+  <!-- ======================================================== HOW IT WORKS -->
+  <section class="view" id="view-how" aria-label="How it works" hidden>
+    <div class="section" style="gap:18px">
+      <div class="prose">
+        <h2 style="font-size:1.45rem;font-weight:800;font-stretch:80%;color:var(--ink)">How an investigation runs</h2>
+        <p>An L1 analyst's job on an alert is evidence gathering followed by a judgement and a written rationale. The agent does the gathering and drafts the judgement; deterministic code does the detection and screening; controls check the result; a person decides.</p>
+      </div>
+      <div class="flow">
+        <div><b>Alert</b><span>Transaction monitoring or sanctions screening hit, with the triggering transactions.</span></div>
+        <div class="hl"><b>Agent loop</b><span>The model chooses tools, reads results, and repeats until it can return a JSON decision.</span></div>
+        <div><b>Tools</b><span>KYC profile, transactions, 12 typology detectors, sanctions screening, policy search.</span></div>
+        <div class="hl"><b>Controls</b><span>Grounding, sanctions hard stop, dual control against the rules engine, evidence checks.</span></div>
+        <div><b>Analyst</b><span>Approves or overrides with a reason. Every step is in the audit trail.</span></div>
+      </div>
+      <div class="twocol">
+        <section class="panel section">
+          <h3>Tools the agent can call</h3>
+          <div style="overflow-x:auto"><table class="deftable">
+            <tr><td>get_alert</td><td>Rule, date, summary and triggering transaction IDs</td></tr>
+            <tr><td>get_customer_profile</td><td>KYC data, expected activity, PEP status, EDD date, known counterparties, expected events, documents</td></tr>
+            <tr><td>get_transactions</td><td>Filtered activity up to the alert date with a summary</td></tr>
+            <tr><td>detect_typologies</td><td>Structuring, mule pass-through, round-tripping, dormancy, account takeover, PEP funds, velocity, large inflows, higher-risk jurisdictions, unapproved beneficiaries, funnel accounts, income shifts</td></tr>
+            <tr><td>screen_sanctions</td><td>Fuzzy name match (Jaro-Winkler) plus DOB, nationality and country to grade hits STRONG, POSSIBLE or WEAK</td></tr>
+            <tr><td>search_policy</td><td>BM25 retrieval over the policy, returning citable POL- sections</td></tr>
+          </table></div>
+          <p class="label-line">Every tool is scoped to the customer on the alert, so the model cannot read other customers' data.</p>
+        </section>
+        <section class="panel section">
+          <h3>Controls before a human sees it</h3>
+          <div style="overflow-x:auto"><table class="deftable">
+            <tr><td>CTRL-SCHEMA</td><td>Unusable model output falls back to the offline investigator</td></tr>
+            <tr><td>CTRL-GROUNDING</td><td>Cited IDs must have come from a tool in this case; invented ones are removed and flagged</td></tr>
+            <tr><td>CTRL-SANCTIONS</td><td>A potential true sanctions match can never be closed by the agent</td></tr>
+            <tr><td>CTRL-DUAL</td><td>If the model and the independent rules engine disagree, a senior analyst reviews</td></tr>
+            <tr><td>CTRL-EVIDENCE</td><td>Escalations need evidence; closures need mitigation when the score is elevated</td></tr>
+            <tr><td>CTRL-HITL</td><td>Nothing is actioned automatically; overrides need a reason</td></tr>
+          </table></div>
+        </section>
+      </div>
+      <section class="panel prose">
+        <h3>Two ways to run it</h3>
+        <p><strong>This page</strong> runs the offline investigator for everyone. Opened in Claude, it can also run the live agent: Claude calls this page's own functions as tools, so you can watch each call in the trace.</p>
+        <p><strong>The Python project</strong> runs the same design on Groq (Llama 3.3 70B by default) behind a Streamlit app, with 63 unit tests, a scripted mock LLM for testing the loop and controls, and an evaluation harness.</p>
+      </section>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Built by Peer Arif · Python, Groq, Streamlit · this page: vanilla JS</span>
+    <span id="repo-link"></span>
+    <span>All people, companies, sanctions entries and jurisdictions (QK, QM, QV) are fictional.</span>
+  </div>
+</footer>
+
+<script>
+"use strict";
+const DATA = /*__DEMO_DATA__*/null;
+const ID_RE = /\b(?:TX-\d{3}-\d{4}|SAN-\d{4}|DOC-\d{4}|POL-[A-Z]+-\d{2}|ALT-\d{4})\b/g;
+const ID_FULL = /^(?:TX-\d{3}-\d{4}|SAN-\d{4}|DOC-\d{4}|POL-[A-Z]+-\d{2}|ALT-\d{4})$/;
+const DISPOSITIONS = ["CLOSE", "RFI", "ESCALATE"];
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ----------------------------------------------------------------- helpers
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "text") el.textContent = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid instanceof Node ? kid : String(kid));
+  return el;
+}
+const $ = (s) => document.querySelector(s);
+const gbp = (n) => "£" + Number(n).toLocaleString("en-GB", { maximumFractionDigits: 2 });
+const round = (x, d) => Math.round(x * 10 ** d) / 10 ** d;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const findAll = (s) => Array.from(String(s).matchAll(ID_RE), (m) => m[0]);
+const pad = (n) => String(n).padStart(2, "0");
+function isoMin(d) { return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`; }
+function asOf(alert) { return new Date(alert.alert_date + "T23:59:00Z"); }
+
+const ALERTS = Object.fromEntries(DATA.alerts.map((a) => [a.alert_id, a]));
+const POLICY_TITLES = Object.fromEntries(DATA.policy.map((p) => [p.policy_id, p.title]));
+
+// ----------------------------------------------------------------- BM25 policy search (mirrors aml_agent/retrieval.py)
+const STOP = new Set("the a an and or of to in is are be for on with by as that this it at from can should must not any where when which such their its than into within has have was were been if so".split(" "));
+function tokens(text) {
+  const out = [];
+  for (let w of String(text).toLowerCase().match(/[a-z0-9]+/g) || []) {
+    if (STOP.has(w) || w.length < 2) continue;
+    for (const suf of ["ing", "ies", "es", "s", "ed"]) {
+      if (w.endsWith(suf) && w.length - suf.length >= 4) { w = w.slice(0, -suf.length) + (suf === "ies" ? "y" : ""); break; }
+    }
+    out.push(w);
+  }
+  return out;
+}
+const BM25 = (() => {
+  const k1 = 1.5, b = 0.75;
+  const docs = DATA.policy.map((s) => tokens(s.title + " " + s.title + " " + s.text));
+  const avgdl = docs.reduce((a, d) => a + d.length, 0) / docs.length;
+  const df = new Map();
+  docs.forEach((d) => new Set(d).forEach((t) => df.set(t, (df.get(t) || 0) + 1)));
+  const n = docs.length, idf = new Map();
+  df.forEach((c, t) => idf.set(t, Math.log(1 + (n - c + 0.5) / (c + 0.5))));
+  const tf = docs.map((d) => { const m = new Map(); d.forEach((t) => m.set(t, (m.get(t) || 0) + 1)); return m; });
+  return function search(query, k = 3) {
+    const q = tokens(query), scored = [];
+    tf.forEach((m, i) => {
+      const dl = docs[i].length; let s = 0;
+      for (const t of q) { if (!m.has(t)) continue; const f = m.get(t); s += idf.get(t) * f * (k1 + 1) / (f + k1 * (1 - b + b * dl / avgdl)); }
+      if (s > 0) scored.push([s, i]);
+    });
+    scored.sort((x, y) => y[0] - x[0] || y[1] - x[1]);
+    return scored.slice(0, k).map(([s, i]) => ({ ...DATA.policy[i], score: round(s, 3) }));
+  };
+})();
+
+// ----------------------------------------------------------------- transactions tool (mirrors ToolKit.get_transactions)
+const TXN_KEYS = ["txn_id", "timestamp", "direction", "amount", "channel", "counterparty", "counterparty_country", "counterparty_type", "reference"];
+function txnRows(cid) { return (DATA.txns[cid] || []).map((r) => Object.fromEntries(TXN_KEYS.map((k, i) => [k, r[i]]))); }
+function getTransactions(alert, cid, { days = 30, direction = null, min_amount = 0, limit = 15 } = {}) {
+  days = Math.max(1, Math.min(parseInt(days, 10) || 30, 365));
+  limit = Math.max(1, Math.min(parseInt(limit, 10) || 15, 50));
+  const end = asOf(alert), start = new Date(end.getTime() - days * 86400000);
+  const lo = isoMin(start), hi = isoMin(end);
+  let rows = txnRows(cid).filter((t) => t.timestamp >= lo && t.timestamp <= hi);
+  if (direction === "IN" || direction === "OUT") rows = rows.filter((t) => t.direction === direction);
+  if (Number(min_amount)) rows = rows.filter((t) => t.amount >= Number(min_amount));
+  const shown = [...rows].sort((a, b) => b.amount - a.amount).slice(0, limit).sort((a, b) => (a.timestamp < b.timestamp ? -1 : 1));
+  const byChannel = {};
+  rows.forEach((t) => (byChannel[t.channel] = (byChannel[t.channel] || 0) + 1));
+  return {
+    customer_id: cid,
+    window: { from: lo.slice(0, 10), to: hi.slice(0, 10) },
+    filters: { direction: direction || null, min_amount: min_amount || 0 },
+    summary: {
+      count: rows.length,
+      total_in: round(rows.filter((t) => t.direction === "IN").reduce((a, t) => a + t.amount, 0), 2),
+      total_out: round(rows.filter((t) => t.direction === "OUT").reduce((a, t) => a + t.amount, 0), 2),
+      by_channel: byChannel,
+      distinct_counterparties: new Set(rows.map((t) => t.counterparty)).size,
+    },
+    note: rows.length > shown.length ? `Showing the ${shown.length} largest of ${rows.length} transactions, in date order.` : `Showing all ${rows.length} transactions.`,
+    transactions: shown.map((t) => ({ txn_id: t.txn_id, timestamp: t.timestamp.replace("T", " "), direction: t.direction, amount: t.amount, channel: t.channel, counterparty: t.counterparty, country: t.counterparty_country, cp_type: t.counterparty_type, reference: t.reference })),
+  };
+}
+
+// ----------------------------------------------------------------- toolkit (scoped to one case, records seen IDs)
+class ToolKit {
+  constructor(alertId, onTool) { this.alert = ALERTS[alertId]; this.cid = this.alert.customer_id; this.seen = new Set(); this.calls = 0; this.onTool = onTool; this.pre = DATA.cases[alertId].tool_outputs; }
+  scope(cid) { if (cid !== this.cid) throw new Error(`Access denied: customer ${cid} is outside the scope of this case (${this.cid}).`); }
+  run(name, a) {
+    switch (name) {
+      case "get_alert":
+        if (!ALERTS[a.alert_id]) return { error: `Alert ${a.alert_id} not found` };
+        if (a.alert_id !== this.alert.alert_id) throw new Error(`Access denied: only alert ${this.alert.alert_id} is in scope.`);
+        return this.pre.get_alert;
+      case "get_customer_profile": this.scope(a.customer_id); return this.pre.get_customer_profile;
+      case "detect_typologies": this.scope(a.customer_id); return this.pre.detect_typologies;
+      case "screen_sanctions": this.scope(a.customer_id); return this.pre.screen_sanctions;
+      case "get_transactions": this.scope(a.customer_id); return getTransactions(this.alert, a.customer_id, a);
+      case "search_policy": return { query: String(a.query || ""), results: BM25(String(a.query || ""), Math.max(1, Math.min(parseInt(a.k, 10) || 2, 5))) };
+      default: return { error: `Unknown tool '${name}'.` };
+    }
+  }
+  execute(name, input) {
+    let out;
+    try { out = this.run(name, input || {}); } catch (e) { out = { error: String(e.message || e) }; }
+    this.calls++;
+    findAll(JSON.stringify(out)).forEach((id) => this.seen.add(id));
+    this.onTool && this.onTool(name, input || {}, out);
+    return out;
+  }
+}
+function toolSummary(name, r) {
+  if (r.error) return "ERROR: " + r.error;
+  switch (name) {
+    case "get_alert": return `${r.rule_id}: ${r.rule_name}`;
+    case "get_customer_profile": return `${r.name} (${r.customer_type}), risk ${r.risk_rating}, PEP=${r.pep ? "True" : "False"}`;
+    case "get_transactions": return `${r.summary.count} transactions, showing ${r.transactions.length}`;
+    case "detect_typologies": return r.findings.map((f) => f.typology + (f.mitigated ? " (mitigated)" : "")).join(", ") || "no typologies detected";
+    case "screen_sanctions": return r.summary;
+    case "search_policy": return r.results.map((s) => s.policy_id).join(", ") || "no results";
+    default: return "ok";
+  }
+}
+
+// ----------------------------------------------------------------- controls (mirrors aml_agent/controls.py)
+function normalizeDecision(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+  const disposition = String(obj.disposition || "").trim().toUpperCase();
+  if (!DISPOSITIONS.includes(disposition)) return null;
+  let score = Math.round(Number(obj.risk_score)); if (!Number.isFinite(score)) score = 0;
+  let confidence = String(obj.confidence || "MEDIUM").toUpperCase(); if (!["LOW", "MEDIUM", "HIGH"].includes(confidence)) confidence = "MEDIUM";
+  const items = (key, tk) => (Array.isArray(obj[key]) ? obj[key] : []).map((e) => {
+    if (typeof e === "string") return { [tk]: e, evidence: findAll(e) };
+    if (!e || typeof e !== "object") return null;
+    let ev = e.evidence || []; if (typeof ev === "string") ev = findAll(ev).length ? findAll(ev) : [ev];
+    return { [tk]: String(e[tk] || e.text || ""), evidence: (Array.isArray(ev) ? ev : []).map(String) };
+  }).filter(Boolean);
+  const strings = (key) => { const v = obj[key] || []; return (Array.isArray(v) ? v : [v]).map(String); };
+  return { disposition, risk_score: Math.max(0, Math.min(100, score)), confidence, typologies: strings("typologies"),
+    key_findings: items("key_findings", "finding"), mitigating_factors: items("mitigating_factors", "factor"),
+    policy_refs: strings("policy_refs"), narrative: String(obj.narrative || ""), recommended_actions: strings("recommended_actions") };
+}
+function applyControls(proposed, rules, seen, mode) {
+  const d = JSON.parse(JSON.stringify(proposed)); const flags = []; let senior = false;
+  const cited = new Set();
+  d.key_findings.forEach((k) => k.evidence.forEach((e) => cited.add(e)));
+  d.mitigating_factors.forEach((m) => m.evidence.forEach((e) => cited.add(e)));
+  d.policy_refs.forEach((p) => cited.add(p));
+  findAll(d.narrative).forEach((i) => cited.add(i));
+  const citedIds = [...cited].filter((i) => ID_FULL.test(i));
+  const bad = citedIds.filter((i) => !seen.has(i)).sort();
+  if (bad.length) {
+    const set = new Set(bad);
+    d.key_findings.forEach((k) => (k.evidence = k.evidence.filter((e) => !set.has(e))));
+    d.mitigating_factors.forEach((m) => (m.evidence = m.evidence.filter((e) => !set.has(e))));
+    d.policy_refs = d.policy_refs.filter((p) => !set.has(p));
+    bad.forEach((id) => (d.narrative = d.narrative.split(id).join("[unverified reference removed]")));
+    flags.push({ control: "CTRL-GROUNDING", severity: "HIGH", message: `Removed ${bad.length} citation(s) that no tool returned in this case: ${bad.join(", ")}.` });
+    senior = true;
+  }
+  const grounding = { cited: citedIds.length, grounded: citedIds.length - bad.length, rate: citedIds.length ? round((citedIds.length - bad.length) / citedIds.length, 3) : 1 };
+  if (rules.sanctions_override) {
+    if (d.disposition !== "ESCALATE") {
+      flags.push({ control: "CTRL-SANCTIONS", severity: "CRITICAL", message: `Recommendation changed from ${d.disposition} to ESCALATE: potential true sanctions match cannot be closed at L1 (POL-SAN-02).` });
+      d.disposition = "ESCALATE"; d.risk_score = Math.max(d.risk_score, 90); senior = true;
+    } else flags.push({ control: "CTRL-SANCTIONS", severity: "INFO", message: "Potential true sanctions match: hold the payment and refer to the sanctions team." });
+  }
+  if (mode === "llm" && d.disposition !== rules.disposition) {
+    flags.push({ control: "CTRL-DUAL", severity: "WARN", message: `LLM recommends ${d.disposition}; independent rules engine scores ${rules.score} (${rules.disposition}). Senior analyst review required.` });
+    senior = true;
+  }
+  if ((d.disposition === "ESCALATE" || d.disposition === "RFI") && !d.key_findings.some((k) => k.evidence.length)) {
+    flags.push({ control: "CTRL-EVIDENCE", severity: "WARN", message: `${d.disposition} recommended without any cited evidence.` }); senior = true;
+  }
+  if (d.disposition === "CLOSE" && rules.score >= DATA.meta.thresholds.RFI && !d.mitigating_factors.some((m) => m.evidence.length)) {
+    flags.push({ control: "CTRL-EVIDENCE", severity: "WARN", message: `Closure recommended without cited mitigating evidence while the rules score is ${rules.score}.` }); senior = true;
+  }
+  return { decision: d, flags, senior, grounding };
+}
+
+// ----------------------------------------------------------------- state
+const state = {
+  view: "cases", alertId: "ALT-1005", mode: "offline", running: false, ctl: null,
+  results: {}, claude: { sample: null, ready: false, note: "Checking whether this view can run the live agent…" },
+  claudeRuns: [],
+};
+function offlineResult(aid) {
+  const c = DATA.cases[aid], o = c.offline;
+  return { source: "offline", model: "rules engine", decision: o.decision, controls: o.controls, grounding: o.grounding, senior: o.controls.some((f) => f.severity !== "INFO"),
+    metrics: { tool_calls: o.metrics.tool_calls, latency_ms: o.metrics.latency_ms }, trace: o.trace, rules: c.rules, runId: o.run_id, analyst: null, fresh: false };
+}
+
+// ----------------------------------------------------------------- rendering: queue + case head
+function statusTag(aid) {
+  const r = state.results[aid];
+  if (!r) return h("span", { class: "tag", text: "Open" });
+  if (!r.decision || r.fresh === "pending") return h("span", { class: "tag", text: "Running" });
+  if (r.analyst) return h("span", { class: "tag done " + r.analyst.final, text: r.analyst.final });
+  return h("span", { class: "tag " + r.decision.disposition, text: r.decision.disposition });
+}
+function renderQueue() {
+  const ol = $("#queue"); ol.replaceChildren();
+  DATA.alerts.forEach((a) => {
+    ol.append(h("li", {}, h("button", { class: "qitem", "aria-current": a.alert_id === state.alertId ? "true" : "false", onclick: () => selectAlert(a.alert_id) },
+      h("span", { class: "qid", text: `${a.alert_id} · ${a.priority}` }), h("span", { class: "qstatus" }, statusTag(a.alert_id)),
+      h("span", { class: "qcust", text: a.customer_name }), h("span", { class: "qrule", text: a.rule_name }))));
+  });
+  const done = Object.values(state.results).filter((r) => r.analyst).length;
+  $("#queue-count").textContent = `${DATA.alerts.length} alerts · ${done} decided`;
+}
+function renderHead() {
+  const a = ALERTS[state.alertId], c = DATA.customers[a.customer_id];
+  $("#case-title").textContent = c.name;
+  $("#case-meta").textContent = `${a.alert_id} · ${a.rule_id} · raised ${a.alert_date}`;
+  const pr = $("#case-priority"); pr.textContent = a.priority + " priority";
+  $("#case-trigger").textContent = a.rule_name + ". " + a.trigger_summary;
+  const isInd = c.customer_type === "individual";
+  const facts = [
+    ["Customer", `${c.customer_id} · ${c.customer_type}`],
+    ["Occupation / activity", c.occupation],
+    ["KYC risk", c.risk_rating + (c.pep ? " · PEP" : "")],
+    ["Customer since", c.account_opened],
+    [isInd ? "Declared income" : "Declared turnover", gbp(c.declared_annual_income) + " / yr"],
+    ["Expected inflow", gbp(c.expected_monthly_inflow) + " / month"],
+    ["EDD last review", c.edd_last_review || "None on file"],
+    ["Documents on file", String((c.documents_on_file || []).length)],
+  ];
+  $("#case-facts").replaceChildren(...facts.map(([k, v]) => h("div", {}, h("dt", { text: k }), h("dd", { text: v }))));
+}
+
+// ----------------------------------------------------------------- rendering: recommendation
+function chip(id) {
+  if (/^TX-/.test(id)) return h("button", { class: "chip", type: "button", title: "Show this transaction", onclick: () => focusTxn(id) }, id);
+  return h("span", { class: "chip", title: POLICY_TITLES[id] || "" }, id);
+}
+function meter(score, rulesScore) {
+  const t = DATA.meta.thresholds;
+  return h("div", { class: "meter" },
+    h("div", { class: "meter-track", role: "img", "aria-label": `Risk score ${score} of 100; rules engine ${rulesScore}` },
+      h("span", { class: "meter-tick", style: `left:${t.RFI}%` }), h("span", { class: "meter-tick", style: `left:${t.ESCALATE}%` }),
+      h("span", { class: "meter-mark", style: `left:${score}%` }), h("span", { class: "meter-mark rules", style: `left:${rulesScore}%` })),
+    h("div", { class: "meter-scale" }, h("span", { style: "left:0" }, "0 CLOSE"), h("span", { style: `left:${t.RFI}%` }, `${t.RFI} RFI`), h("span", { style: `left:${t.ESCALATE}%` }, `${t.ESCALATE} ESCALATE`), h("span", { style: "left:100%" }, "100")),
+    h("div", { class: "legend" }, h("span", {}, h("i"), "Recommendation"), h("span", {}, h("i", { class: "rules" }), "Independent rules engine")));
+}
+function renderRec() {
+  const box = $("#rec"); box.replaceChildren();
+  const r = state.results[state.alertId];
+  if (state.running && (!r || r.fresh === "pending")) {
+    box.append(h("div", { class: "rec-top" }, h("div", { class: "stamp pending", text: "Investigating" }),
+      h("p", { class: "label-line", text: "Follow the agent's steps in the trace. The recommendation appears here when it finishes." })));
+    return;
+  }
+  if (!r) {
+    box.append(h("div", { class: "rec-top" }, h("div", { class: "stamp pending", text: "Not run" }),
+      h("p", { class: "label-line", text: "Choose an investigator and press Run investigation." })));
+    return;
+  }
+  const d = r.decision, label = DATA.labels[state.alertId].disposition;
+  const stamp = h("div", { class: "stamp " + d.disposition + (r.fresh === true && !REDUCED ? " thud" : ""), text: d.disposition });
+  r.fresh = false;
+  box.append(
+    h("div", { class: "rec-top" }, stamp,
+      h("div", { class: "kpis" },
+        h("div", { class: "kpi" }, h("div", { class: "k", text: "Risk score" }), h("div", { class: "v" }, String(d.risk_score), h("small", {}, " /100"))),
+        h("div", { class: "kpi" }, h("div", { class: "k", text: "Rules engine" }), h("div", { class: "v" }, `${r.rules.disposition} `, h("small", {}, String(r.rules.score)))),
+        h("div", { class: "kpi" }, h("div", { class: "k", text: "Grounded citations" }), h("div", { class: "v" }, `${r.grounding.grounded}/${r.grounding.cited}`)),
+        h("div", { class: "kpi" }, h("div", { class: "k", text: "Analyst label" }), h("div", { class: "v" }, label + " ", h("small", {}, d.disposition === label ? "match" : "differs"))))),
+    meter(d.risk_score, r.rules.score),
+    h("p", { class: "label-line" }, "Investigator: ", h("b", { text: r.source === "claude" ? "Claude agent (live)" : "Offline investigator" }),
+      ` · confidence ${d.confidence} · ${r.metrics.tool_calls} tool calls · ${(r.metrics.latency_ms / 1000).toFixed(r.metrics.latency_ms < 1000 ? 2 : 1)} s · ${r.runId}`),
+  );
+  if (r.senior || r.controls.length) {
+    const flags = h("div", { class: "flags" });
+    if (r.senior) flags.append(h("div", { class: "flag WARN" }, h("b", { text: "REVIEW" }), h("span", { text: "Senior analyst review required before this case is actioned." })));
+    r.controls.forEach((f) => flags.append(h("div", { class: "flag " + f.severity }, h("b", { text: f.control }), h("span", { text: f.message }))));
+    box.append(flags);
+  }
+  const list = (arr, key) => arr.length ? h("ul", { class: "items" }, arr.map((x) => h("li", {}, h("p", { text: x[key] }), h("div", { class: "chips" }, x.evidence.length ? x.evidence.map(chip) : h("span", { class: "empty", text: "no evidence cited" })))))
+    : h("p", { class: "empty", text: "None" });
+  box.append(
+    h("div", { class: "section" }, h("h3", { text: "Key findings" }), list(d.key_findings, "finding")),
+    h("div", { class: "section" }, h("h3", { text: "Mitigating factors" }), list(d.mitigating_factors, "factor")),
+    h("div", { class: "section" }, h("h3", { text: "Recommended actions" }), d.recommended_actions.length ? h("ul", { class: "items" }, d.recommended_actions.map((a) => h("li", {}, h("p", { text: a })))) : h("p", { class: "empty", text: "None" })),
+    h("div", { class: "section" }, h("h3", { text: "Policy cited" }), d.policy_refs.length ? h("div", { class: "chips" }, d.policy_refs.map(chip)) : h("p", { class: "empty", text: "None" })),
+  );
+}
+
+// ----------------------------------------------------------------- rendering: trace
+const traceStart = { t: 0 };
+function traceItem(e) {
+  const what = h("div", { class: "what" });
+  if (e.actor === "TOOL") what.append(h("code", { text: e.action }), " ", h("span", { text: "→ " + e.summary }));
+  else what.append(e.action, e.summary ? h("span", { text: " · " + e.summary }) : "");
+  return h("li", { class: e.thinking ? "thinking" : "" }, h("span", { class: "ms", text: e.ms != null ? `${Math.round(e.ms)} ms` : "" }), h("span", { class: "actor " + e.actor, text: e.actor }), what);
+}
+function renderTrace() {
+  const r = state.results[state.alertId];
+  const ol = $("#trace"); ol.replaceChildren();
+  if (!r) { ol.append(h("li", {}, h("span"), h("span"), h("div", { class: "what empty", text: "No investigation yet for this alert." }))); $("#trace-meta").textContent = ""; return; }
+  r.trace.forEach((e) => ol.append(traceItem(e)));
+  $("#trace-meta").textContent = r.trace.length + " steps";
+}
+function showThinking(r) {
+  if (state.alertId !== r.alertId) return;
+  const ol = $("#trace"); const th = ol.querySelector(".thinking"); if (th) th.remove();
+  if (r.thinking) { ol.append(traceItem({ actor: "AGENT", action: r.thinking, thinking: true })); ol.scrollTop = ol.scrollHeight; }
+}
+function pushTrace(r, e) {
+  r.trace.push(e);
+  if (state.alertId !== r.alertId) return;
+  const ol = $("#trace"); const thinking = ol.querySelector(".thinking"); if (thinking) thinking.remove();
+  ol.append(traceItem(e));
+  if (r.thinking) ol.append(traceItem({ actor: "AGENT", action: r.thinking, thinking: true }));
+  ol.scrollTop = ol.scrollHeight;
+  $("#trace-meta").textContent = r.trace.length + " steps";
+}
+
+// ----------------------------------------------------------------- rendering: decision + transactions
+function renderDecision() {
+  const box = $("#decision"); box.replaceChildren();
+  const r = state.results[state.alertId];
+  box.append(h("h3", { text: "Narrative and analyst decision" }));
+  if (!r || state.running) { box.append(h("p", { class: "empty", text: "Available once the investigation has finished." })); return; }
+  if (r.analyst) {
+    const a = r.analyst;
+    box.append(h("div", { class: "decided" }, h("b", { text: `${a.action} by ${a.analyst}` }), ` · final disposition ${a.final}` + (a.reason ? ` · reason: ${a.reason}` : "")),
+      h("p", { style: "margin-top:10px;max-width:80ch", text: a.narrative }));
+    box.append(h("div", { class: "formactions", style: "margin-top:10px" }, h("button", { class: "btn", type: "button", onclick: copyReport }, "Copy case report"), h("span", { class: "msg", id: "copy-msg" })));
+    return;
+  }
+  const d = r.decision;
+  const msg = h("span", { class: "msg", id: "dec-msg" });
+  const form = h("form", { onsubmit: (ev) => { ev.preventDefault(); submitDecision(form, msg); } },
+    h("label", { class: "field", for: "narr" }, "Case narrative (edit before filing if needed)", h("textarea", { id: "narr", name: "narr" })),
+    h("div", { class: "formrow" },
+      h("label", { class: "field", for: "analyst" }, "Analyst", h("input", { type: "text", id: "analyst", name: "analyst", value: "L1 Analyst" })),
+      h("div", { class: "field" }, "Decision", h("div", { class: "radios", role: "radiogroup" },
+        h("label", {}, h("input", { type: "radio", name: "choice", value: "approve", id: "choice-approve", checked: true }), `Approve ${d.disposition}`),
+        h("label", {}, h("input", { type: "radio", name: "choice", value: "override", id: "choice-override" }), "Override"))),
+      h("label", { class: "field", for: "override-to" }, "If overriding, final disposition",
+        h("select", { id: "override-to", name: "override" }, DISPOSITIONS.map((x) => h("option", { value: x, selected: x === d.disposition }, x))))),
+    h("label", { class: "field", for: "reason" }, "Reason (required when overriding)", h("input", { type: "text", id: "reason", name: "reason", placeholder: "e.g. Customer confirmed a new catering contract; invoices received" })),
+    h("div", { class: "formactions" }, h("button", { class: "btn primary", type: "submit" }, "Submit decision"),
+      h("button", { class: "btn", type: "button", onclick: copyReport }, "Copy case report"), msg, h("span", { class: "msg", id: "copy-msg" })));
+  form.querySelector("#narr").value = d.narrative;
+  box.append(form);
+}
+function submitDecision(form, msg) {
+  const r = state.results[state.alertId];
+  const approve = form.querySelector("#choice-approve").checked;
+  const final = approve ? r.decision.disposition : form.querySelector("#override-to").value;
+  const reason = form.querySelector("#reason").value.trim();
+  if (!approve && !reason) { msg.className = "msg err"; msg.textContent = "Add a reason to override the recommendation."; return; }
+  r.analyst = { action: approve ? "APPROVED" : "OVERRIDDEN", analyst: form.querySelector("#analyst").value.trim() || "L1 Analyst", final, reason, narrative: form.querySelector("#narr").value, at: new Date().toISOString() };
+  const last = r.trace.length ? r.trace[r.trace.length - 1].ms : 0;
+  r.trace.push({ ms: last, actor: "ANALYST", action: `Analyst ${r.analyst.action.toLowerCase()} recommendation`, summary: `final ${final}${reason ? " · " + reason : ""}` });
+  renderAll();
+}
+function renderTxns() {
+  const a = ALERTS[state.alertId];
+  const end = asOf(a), start = new Date(end.getTime() - 90 * 86400000);
+  const lo = isoMin(start), hi = isoMin(end), trig = new Set(a.trigger_txn_ids);
+  const rows = txnRows(a.customer_id).filter((t) => t.timestamp >= lo && t.timestamp <= hi).reverse();
+  const table = h("table", {}, h("thead", {}, h("tr", {}, ["Date", "Txn ID", "Dir", "Amount", "Channel", "Counterparty", "Ctry", "Reference"].map((x) => h("th", { text: x })))),
+    h("tbody", {}, rows.map((t) => h("tr", { id: "row-" + t.txn_id, class: trig.has(t.txn_id) ? "trigger" : "" },
+      h("td", { class: "date", text: t.timestamp.replace("T", " ") }), h("td", { class: "id", text: t.txn_id }),
+      h("td", { class: t.direction === "IN" ? "in" : "out", text: t.direction }), h("td", { class: "num", text: gbp(t.amount) }),
+      h("td", { text: t.channel }), h("td", { text: t.counterparty }), h("td", { class: "id", text: t.counterparty_country }), h("td", { text: t.reference })))));
+  $("#txn-wrap").replaceChildren(table);
+}
+function focusTxn(id) {
+  const det = $("#txn-details"); det.open = true;
+  const row = document.getElementById("row-" + id);
+  if (!row) { $("#copy-msg") && ($("#copy-msg").textContent = `${id} is outside the 90-day window shown.`); return; }
+  row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash");
+  row.scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "center" });
+}
+
+// ----------------------------------------------------------------- case report (mirrors aml_agent/report.py, condensed)
+function caseReport() {
+  const aid = state.alertId, r = state.results[aid], a = ALERTS[aid], d = r.decision;
+  const L = [`# Case report: ${aid}`, "", `- Customer: ${a.customer_name} (${a.customer_id})`, `- Alert: ${a.rule_id} ${a.rule_name}, raised ${a.alert_date}`,
+    `- Investigator: ${r.source === "claude" ? "Claude agent (live)" : "Offline investigator"} · run ${r.runId}`, "", "## Recommendation", "",
+    `${d.disposition}, risk score ${d.risk_score}/100, confidence ${d.confidence}. Rules engine: ${r.rules.disposition} (${r.rules.score}).`, ""];
+  if (r.controls.length) L.push("## Controls", "", ...r.controls.map((c) => `- ${c.control} (${c.severity}): ${c.message}`), "");
+  L.push("## Key findings", "", ...(d.key_findings.length ? d.key_findings.map((k) => `- ${k.finding} [${k.evidence.join(", ") || "no evidence"}]`) : ["- None"]), "");
+  L.push("## Mitigating factors", "", ...(d.mitigating_factors.length ? d.mitigating_factors.map((m) => `- ${m.factor} [${m.evidence.join(", ") || "no evidence"}]`) : ["- None"]), "");
+  L.push("## Narrative", "", r.analyst ? r.analyst.narrative : d.narrative, "", "## Recommended actions", "", ...d.recommended_actions.map((x) => `- ${x}`), "", `Policy: ${d.policy_refs.join(", ") || "none"}`, "");
+  if (r.analyst) L.push("## Analyst decision", "", `- ${r.analyst.action} by ${r.analyst.analyst}: final ${r.analyst.final}` + (r.analyst.reason ? ` (reason: ${r.analyst.reason})` : ""), "");
+  L.push("## Trace", "", ...r.trace.map((e) => `- ${Math.round(e.ms)} ms · ${e.actor} · ${e.action}${e.summary ? " · " + e.summary : ""}`), "", "Synthetic data. Demo case, not a real investigation.");
+  return L.join("\n");
+}
+async function copyReport() {
+  const text = caseReport(), msg = $("#copy-msg");
+  try { await navigator.clipboard.writeText(text); msg.className = "msg ok"; msg.textContent = "Case report copied as Markdown."; }
+  catch {
+    msg.className = "msg"; msg.textContent = "Copy is blocked here; select the text below instead.";
+    let ta = $("#copy-fallback"); if (!ta) { ta = h("textarea", { id: "copy-fallback", readonly: true }); $("#decision").append(ta); }
+    ta.value = text; ta.focus(); ta.select();
+  }
+}
+
+function restore(aid, prev) { if (prev) state.results[aid] = prev; else delete state.results[aid]; }
+
+// ----------------------------------------------------------------- run: offline
+async function runOffline(aid) {
+  const base = offlineResult(aid);
+  const prev = state.results[aid];
+  const r = { ...base, trace: [], alertId: aid, fresh: "pending" };
+  state.results[aid] = r; renderAll();
+  for (const e of base.trace) {
+    if (state.ctl?.signal.aborted) break;
+    pushTrace(r, e);
+    if (!REDUCED) await sleep(e.actor === "TOOL" ? 260 : 140);
+  }
+  if (state.ctl?.signal.aborted) { restore(aid, prev); return; }
+  r.fresh = true;
+}
+
+// ----------------------------------------------------------------- run: Claude (sample with page tools)
+const CLAUDE_HINT = "To stay within a few rounds, call get_alert, get_customer_profile, detect_typologies and screen_sanctions together in your first round, then get_transactions and search_policy as needed, then give the JSON decision.";
+const SAMPLE_COPY = {
+  not_granted: "Claude access was not allowed for this page, so the live agent is off for this visit. The offline investigator still works.",
+  sampling_disabled: "Claude is not available for this account. The offline investigator still works.",
+  tools_unavailable: "This Claude view cannot run page tools, so the live agent is unavailable here.",
+  rate_limited: "Claude is busy or a usage limit was reached. Try the live agent again in a little while.",
+  session_expired: "Your Claude session expired. Sign in again to use the live agent.",
+  refused: "Claude declined this request. The offline investigator's result is shown instead.",
+};
+async function runClaude(aid) {
+  const sample = state.claude.sample, alert = ALERTS[aid], rules = DATA.cases[aid].rules;
+  const prev = state.results[aid];
+  const r = { source: "claude", model: "Claude", trace: [], rules, alertId: aid, analyst: null, fresh: "pending", runId: "RUN-" + Math.random().toString(16).slice(2, 12).toUpperCase(), controls: [], metrics: {} };
+  state.results[aid] = r; renderAll();
+  const t0 = performance.now(); const ms = () => performance.now() - t0;
+  const log = (actor, action, summary = "") => pushTrace(r, { ms: ms(), actor, action, summary });
+  log("SYSTEM", "Investigation started", `${alert.customer_name} · ${alert.rule_id} · Claude agent`);
+  log("CONTROL", "Independent rules engine assessment", `score ${rules.score} → ${rules.disposition}`);
+  r.thinking = "Claude is reading the alert and choosing tools…"; showThinking(r);
+  const tk = new ToolKit(aid, (name, input, out) => {
+    r.thinking = "Claude is reviewing the results…";
+    log("TOOL", name, toolSummary(name, out));
+  });
+  const tools = DATA.tool_schemas.map((s) => ({ name: s.function.name, description: s.function.description, inputSchema: s.function.parameters,
+    execute: (input) => tk.execute(s.function.name, input) }));
+  const prompt = DATA.prompt + "\n\n" + DATA.request_template.replace("{ALERT_ID}", aid) + "\n\n" + CLAUDE_HINT;
+  let value = null, fallback = null;
+  try {
+    value = await sample.json(prompt, { tools, signal: state.ctl.signal, modelTier: "default",
+      onText: () => { if (r.thinking !== "Claude is writing…") { r.thinking = "Claude is writing…"; showThinking(r); } } });
+  } catch (e) {
+    r.thinking = null;
+    const code = e && e.code;
+    if (code === "cancelled") { restore(aid, prev); return; }
+    if (["not_granted", "sampling_disabled", "tools_unavailable", "not_declared", "capability_disabled", "capability_removed"].includes(code)) disableClaude(SAMPLE_COPY[code] || "The live agent is unavailable in this view.");
+    fallback = code === "invalid_json" ? "Claude did not return a valid decision object (CTRL-SCHEMA)." : `Claude unavailable (${code || "error"}). ${SAMPLE_COPY[code] || ""}`.trim();
+  }
+  r.thinking = null;
+  let proposed = fallback ? null : normalizeDecision(value);
+  if (!fallback && !proposed) fallback = "Claude's reply was not a usable decision object (CTRL-SCHEMA).";
+  if (fallback) {
+    log("SYSTEM", "Falling back to offline investigator", fallback);
+    const o = offlineResult(aid);
+    Object.assign(r, { source: "offline", decision: o.decision, grounding: o.grounding, senior: true, controls: [{ control: "CTRL-FALLBACK", severity: "WARN", message: fallback + " The offline investigator produced this recommendation." }, ...o.controls] });
+  } else {
+    log("AGENT", "Claude proposed a decision", `${proposed.disposition} · risk ${proposed.risk_score}`);
+    const out = applyControls(proposed, rules, tk.seen, "llm");
+    Object.assign(r, { decision: out.decision, controls: out.flags, senior: out.senior, grounding: out.grounding, proposed });
+    out.flags.forEach((f) => log("CONTROL", f.control, f.message));
+  }
+  r.metrics = { tool_calls: tk.calls, latency_ms: Math.round(ms()) };
+  log("AGENT", "Recommendation ready for analyst review", `${r.decision.disposition} · risk ${r.decision.risk_score}`);
+  if (r.source === "claude") state.claudeRuns.push({ alert: aid, customer: alert.customer_name, label: DATA.labels[aid].disposition, proposed: proposed.disposition, final: r.decision.disposition, controls: r.controls.map((f) => f.control), tools: tk.calls, secs: (r.metrics.latency_ms / 1000).toFixed(0), grounding: r.grounding });
+  r.fresh = true;
+}
+
+// ----------------------------------------------------------------- orchestration
+async function run() {
+  if (state.running) return;
+  state.running = true; state.ctl = new AbortController();
+  $("#run").disabled = true; $("#stop").hidden = false; setModeInputsDisabled(true);
+  const aid = state.alertId;
+  try { if (state.mode === "claude" && state.claude.ready) await runClaude(aid); else await runOffline(aid); }
+  catch (err) { console.error(err); }
+  finally {
+    state.running = false; state.ctl = null;
+    $("#run").disabled = false; $("#stop").hidden = true; setModeInputsDisabled(false);
+    renderAll();
+  }
+}
+function stop() { state.ctl?.abort(); }
+function setModeInputsDisabled(dis) { $("#mode-offline").disabled = dis; $("#mode-claude").disabled = dis || !state.claude.ready; }
+function selectAlert(aid) {
+  if (state.running || !ALERTS[aid]) return;
+  state.alertId = aid;
+  if (location.hash !== "#" + aid) history.replaceState(null, "", "#" + aid);
+  renderAll();
+  if (window.innerWidth <= 980) $("#case-title").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" });
+}
+function renderHint() {
+  const hint = state.mode === "claude"
+    ? "Claude decides which of this page's tools to call, reads the results and writes the decision; the controls then check it. It runs on your own Claude account, asks your permission the first time, and usually takes 30–90 seconds."
+    : "A fixed plan over the same tools, scored by the rules engine. No AI call, so it works for everyone and finishes in a moment.";
+  $("#runhint").textContent = hint + (state.claude.ready ? "" : " " + state.claude.note);
+}
+function disableClaude(note) {
+  state.claude.ready = false; state.claude.note = note;
+  $("#mode-claude").disabled = true;
+  if (state.mode === "claude") { state.mode = "offline"; $("#mode-offline").checked = true; }
+  renderHint();
+}
+function renderAll() { renderQueue(); renderHead(); renderRec(); renderTrace(); renderDecision(); renderTxns(); renderEval(); }
+
+// ----------------------------------------------------------------- evaluation view
+function pct(x) { return x == null ? "n/a" : Math.round(x * 100) + "%"; }
+function renderEval() {
+  const e = DATA.eval;
+  const tiles = [
+    ["Accuracy", pct(e.accuracy), `${e.rows.filter((r) => r.correct).length} of ${e.cases} alerts`],
+    ["Escalation recall", pct(e.escalation_recall), "Truly suspicious cases escalated"],
+    ["Missed escalations", String(e.missed_escalations), "Labelled ESCALATE, recommended CLOSE"],
+    ["Grounding rate", pct(e.grounding_rate), "Cited IDs returned by a tool"],
+    ["Tool calls per case", String(e.avg_tool_calls), "Offline investigator plan"],
+  ];
+  $("#eval-tiles").replaceChildren(...tiles.map(([k, v, p]) => h("div", { class: "tile" }, h("div", { class: "k", text: k }), h("div", { class: "v", text: v }), h("p", { text: p }))));
+  const cm = $("#eval-cm"); cm.replaceChildren(h("tr", {}, h("th", { text: "label \\ rec." }), DISPOSITIONS.map((x) => h("th", { text: x }))));
+  DISPOSITIONS.forEach((t) => cm.append(h("tr", {}, h("th", { text: t }), DISPOSITIONS.map((p) => {
+    const n = e.confusion[t][p]; return h("td", { class: t === p ? "diag" : (t === "ESCALATE" && p === "CLOSE" && n ? "miss" : ""), text: String(n) });
+  }))));
+  $("#eval-rows").replaceChildren(h("table", {}, h("thead", {}, h("tr", {}, ["Alert", "Customer", "Label", "Recommended", "Score", "Controls", "Correct"].map((x) => h("th", { text: x })))),
+    h("tbody", {}, e.rows.map((r) => h("tr", {}, h("td", { class: "id", text: r.alert_id }), h("td", { text: r.customer }), h("td", {}, h("span", { class: "tag " + r.label, text: r.label })),
+      h("td", {}, h("span", { class: "tag " + r.predicted, text: r.predicted })), h("td", { class: "num", text: String(r.risk_score) }), h("td", { class: "id", text: r.controls.join(", ") || "–" }), h("td", { text: r.correct ? "Yes" : "No" }))))));
+  const box = $("#claude-runs");
+  if (!state.claudeRuns.length) {
+    box.replaceChildren(h("p", { class: "empty", text: state.claude.ready ? "Run the Claude agent on any case and its result is scored against the analyst label here." : "The live agent runs when this page is opened in Claude. Its results are scored against the analyst labels here." }));
+    return;
+  }
+  const ok = state.claudeRuns.filter((x) => x.final === x.label).length;
+  box.replaceChildren(h("p", { class: "label-line" }, h("b", { text: `${ok} of ${state.claudeRuns.length}` }), " match the analyst label after controls."),
+    h("div", { class: "tablewrap" }, h("table", {}, h("thead", {}, h("tr", {}, ["Alert", "Label", "Claude", "After controls", "Controls", "Tools", "Time"].map((x) => h("th", { text: x })))),
+      h("tbody", {}, state.claudeRuns.map((x) => h("tr", {}, h("td", { class: "id", text: x.alert }), h("td", {}, h("span", { class: "tag " + x.label, text: x.label })), h("td", {}, h("span", { class: "tag " + x.proposed, text: x.proposed })),
+        h("td", {}, h("span", { class: "tag " + x.final, text: x.final })), h("td", { class: "id", text: x.controls.join(", ") || "–" }), h("td", { class: "num", text: String(x.tools) }), h("td", { class: "num", text: x.secs + " s" })))))));
+}
+
+// ----------------------------------------------------------------- views + boot
+function showView(v) {
+  state.view = v;
+  document.querySelectorAll(".view").forEach((s) => (s.hidden = s.id !== "view-" + v));
+  document.querySelectorAll(".nav a").forEach((a) => a.setAttribute("aria-current", a.dataset.view === v ? "page" : "false"));
+}
+function route() {
+  const t = location.hash.slice(1);
+  if (t === "evaluation" || t === "how") return showView(t);
+  showView("cases");
+  if (ALERTS[t] && t !== state.alertId && !state.running) { state.alertId = t; renderAll(); }
+}
+window.addEventListener("hashchange", route);
+$("#run").addEventListener("click", run);
+$("#stop").addEventListener("click", stop);
+document.querySelectorAll('input[name="mode"]').forEach((i) => i.addEventListener("change", () => { state.mode = i.value; renderHint(); }));
+if (DATA.meta.repo_url) $("#repo-link").append(h("a", { href: DATA.meta.repo_url, target: "_blank", rel: "noopener" }, "Source code on GitHub"));
+
+state.results["ALT-1005"] = { ...offlineResult("ALT-1005"), alertId: "ALT-1005" };
+$("#mode-claude").disabled = true;
+route(); renderAll(); renderHint();
+
+(async () => {
+  const sample = window.claude && typeof window.claude.use === "function" ? await window.claude.use("sample").catch(() => null) : null;
+  if (!sample) return disableClaude("The live Claude agent is available when this page is opened in Claude.");
+  const limits = await sample.limits().catch(() => null);
+  if (!limits || !limits.tools || limits.tools.maxCount < DATA.tool_schemas.length) return disableClaude("This Claude view cannot run page tools, so the live agent is unavailable here.");
+  state.claude = { sample, ready: true, note: "" };
+  if (!state.running) $("#mode-claude").disabled = false;
+  renderHint(); renderEval();
+})();
+</script>

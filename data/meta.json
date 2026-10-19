@@ -1,0 +1,13 @@
+{
+  "dataset": "Synthetic AML alert triage dataset",
+  "version": "1.0",
+  "seed": 42,
+  "as_of": "2026-10-15",
+  "currency": "GBP",
+  "higher_risk_jurisdictions": {
+    "QK": "Kestrel Islands (fictional)",
+    "QM": "Marazan (fictional)",
+    "QV": "Veldora (fictional)"
+  },
+  "notice": "All people, companies, sanctions entries and jurisdictions are fictional."
+}
