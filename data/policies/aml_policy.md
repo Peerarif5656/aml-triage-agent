@@ -51,7 +51,9 @@ can be closed as a false positive with the differing identifiers recorded.
 Where the name matches and at least one secondary identifier matches, or where no secondary
 identifiers are available to rule the match out, the case is a potential true match. L1 analysts must
 not close it. The payment must be held and the case referred immediately to the sanctions team, which
-decides whether to freeze funds and report to OFSI.
+decides whether to freeze funds and report to OFSI. Funds or economic resources of a designated person
+must not be dealt with or made available without an OFSI licence, and a confirmed match or suspected
+breach is reported to OFSI as soon as practicable.
 
 ## [POL-JUR-01] Higher-risk jurisdictions
 
@@ -114,5 +116,8 @@ the activity in counterparty, amount and timing.
 
 Escalation narratives should explain who is involved, what happened, when, where the funds came from
 and went to, and why the activity is suspicious, citing transaction identifiers. The customer must not
-be told that a referral or SAR is being considered (tipping off is an offence). The MLRO decides
-whether to submit a SAR to the National Crime Agency.
+be told that a referral or SAR is being considered (tipping off is an offence under POCA section 333A).
+The MLRO decides whether to submit a SAR to the National Crime Agency. Where the bank suspects that
+funds are criminal property and is asked to process a further transaction with them, the MLRO may
+request a Defence Against Money Laundering (DAML) from the NCA, and the transaction is held while the
+NCA considers it. Customer contact during an escalation is agreed with the MLRO first.

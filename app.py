@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -19,7 +20,17 @@ from aml_agent.llm import GroqClient, LLMError, list_groq_models, usable_models
 from aml_agent.report import render_case_report
 from eval.run_eval import RESULTS_DIR, evaluate, to_markdown
 
-st.set_page_config(page_title="AML Alert Triage Agent", page_icon="🛡️", layout="wide")
+REPO_URL = "https://github.com/Peerarif5656/aml-triage-agent"
+DEMO_CASES = [  # a three-case walkthrough that shows escalation, a cleared false positive and a hard control
+    ("ALT-1005", "Student account used as a money mule", "ESCALATE"),
+    ("ALT-1002", "£287k credit explained by a documented house sale", "CLOSE"),
+    ("ALT-1003", "Payment to a sanctioned entity", "ESCALATE + sanctions control"),
+]
+
+st.set_page_config(page_title="AML Alert Triage Agent", page_icon="🛡️", layout="wide",
+                   menu_items={"Get help": REPO_URL, "Report a bug": REPO_URL + "/issues",
+                               "About": "AML Alert Triage Agent by Peer Arif. An agentic AI investigator for bank "
+                                        "AML and sanctions alerts. All data is synthetic."})
 
 STYLE = {"ESCALATE": ("#b42318", "#fef3f2"), "RFI": ("#b54708", "#fffaeb"), "CLOSE": ("#067647", "#ecfdf3")}
 ACTOR_ICON = {"SYSTEM": "⚙️", "TOOL": "🔧", "AGENT": "🤖", "CONTROL": "🛡️", "ANALYST": "👤"}
@@ -119,8 +130,11 @@ with st.sidebar:
     st.divider()
     st.markdown("**About this demo**")
     st.caption("All customers, transactions, sanctions entries and jurisdictions are synthetic. "
-               "QK, QM and QV are fictional higher-risk jurisdictions.")
+               "QK, QM and QV are fictional higher-risk jurisdictions. The policy is illustrative and "
+               "modelled on UK practice.")
     st.caption(f"Data version `{store.data_version}` · prompt `{C.PROMPT_VERSION}`")
+    st.divider()
+    st.markdown(f"Built by **Peer Arif** · [Source code and documentation]({REPO_URL})")
 
 
 def build_agent() -> tuple[TriageAgent | None, str | None]:
@@ -265,7 +279,8 @@ with tab_inv:
             "Alert": a["alert_id"], "Customer": store.get_customer(a["customer_id"])["name"],
             "Priority": a["priority"], "Status": status_for(a["alert_id"])} for a in alerts]),
             hide_index=True, width="stretch", height=300)
-        alert_id = st.selectbox("Alert to investigate", [a["alert_id"] for a in alerts],
+        alert_ids = [a["alert_id"] for a in alerts]
+        alert_id = st.selectbox("Alert to investigate", alert_ids, index=alert_ids.index(DEMO_CASES[0][0]),
                                 format_func=lambda x: f"{x} · {store.get_customer(store.get_alert(x)['customer_id'])['name']}")
         alert = store.get_alert(alert_id)
         customer = store.get_customer(alert["customer_id"])
@@ -280,8 +295,7 @@ with tab_inv:
                        f"{customer['account_opened'][:4]}" + (" · PEP" if customer.get("pep") else ""))
         run = st.button("▶ Run investigation", type="primary", width="stretch")
         with st.expander("Customer transactions (last 90 days)"):
-            from datetime import date, datetime, timedelta
-            end = datetime.combine(date.fromisoformat(alert["alert_date"]), datetime.max.time())
+            end =datetime.combine(date.fromisoformat(alert["alert_date"]), datetime.max.time())
             rows = store.transactions(customer["customer_id"], end - timedelta(days=90), end)
             df = pd.DataFrame([public_txn(t) for t in rows])
             if not df.empty:
@@ -304,9 +318,13 @@ with tab_inv:
                 ss.results[alert_id] = result
         result = ss.results.get(alert_id)
         if result is None:
-            st.info("Pick an alert on the left and run the investigation. The agent will pull the KYC profile, run "
-                    "the typology detectors, inspect transactions, screen sanctions and search policy, then "
-                    "recommend a disposition for you to approve or override.", icon="👈")
+            with st.container(border=True):
+                st.markdown("#### Suggested walkthrough")
+                st.markdown("Choose a case on the left and press **Run investigation**. Each run takes a few seconds.")
+                st.markdown("\n".join(f"- **{aid}** · {desc} → expect **{exp}**" for aid, desc, exp in DEMO_CASES))
+                st.caption("The agent opens the case file, decides which evidence and policy it needs, and recommends "
+                           "CLOSE, RFI or ESCALATE with cited evidence. Controls check the recommendation, and you "
+                           "approve or override it as the analyst.")
         else:
             render_result(result)
 
@@ -331,6 +349,14 @@ def render_eval(name: str, s: dict) -> None:
                + (f", {s['avg_llm_calls']} LLM calls, {s['avg_tokens']:,} tokens per case" if s["avg_llm_calls"] else ""))
     st.download_button("⬇️ Report (.md)", to_markdown(s), file_name=f"eval_{name.replace(' ', '_')}.md",
                        key=f"dl_{name}")
+    with st.expander("Raw results (JSON)"):
+        st.code(json.dumps(s, indent=1, default=str), language="json")
+
+
+def saved_run_label(stem: str, s: dict) -> str:
+    if s.get("mode") == "llm":
+        return f"LLM agent · {s.get('model')} · saved run ({s.get('run_at', '')[:10]})"
+    return "Offline rules engine · saved run"
 
 
 with tab_eval:
@@ -341,15 +367,16 @@ with tab_eval:
              "and how often the controls had to step in.")
     st.caption("Note: the rules engine was calibrated on this synthetic dataset, so its score is a sanity check. "
                "The informative number is how the LLM agent performs against the same labels.")
-    for path in sorted(RESULTS_DIR.glob("*.json")) if RESULTS_DIR.exists() else []:
-        ss.evals.setdefault(f"saved: {path.stem}", json.loads(path.read_text()))
+    for path in sorted(RESULTS_DIR.glob("*.json"), reverse=True) if RESULTS_DIR.exists() else []:
+        saved = json.loads(path.read_text())
+        ss.evals.setdefault(saved_run_label(path.stem, saved), saved)
     b1, b2 = st.columns(2)
     if b1.button("Run evaluation · rules engine", width="stretch"):
         with st.spinner("Running 13 investigations…"):
             ss.evals["rules engine (this session)"] = evaluate(TriageAgent(store, mode="rules"), store)
     if b2.button("Run evaluation · LLM agent", width="stretch", disabled=not (use_llm and api_key),
-                 help="Runs all 13 alerts through the LLM agent. On Groq's free tier this takes about 5-10 minutes and uses "
-                      "roughly half of the daily token allowance, so avoid running it just before a live demo."):
+                 help="Runs all 13 alerts through the LLM agent. On Groq's free tier this takes a few minutes and uses "
+                      "about a third of the daily token allowance, so avoid running it just before a live demo."):
         agent, err = build_agent()
         if err:
             st.error(err)
@@ -374,7 +401,7 @@ digraph {
   edge [color="#667085", fontname="Helvetica", fontsize=9];
   alert [label="Monitoring / screening\\nalert"];
   agent [label="LLM investigator\\n(Groq tool-calling loop)", fillcolor="#e0eaff"];
-  tools [label="Tools\\nalert · KYC profile · transactions\\ntypology detectors · sanctions screening\\npolicy search (BM25 RAG)"];
+  tools [label="Tools\\nopen_case: alert · KYC profile ·\\ntypology detectors · sanctions screening\\nget_transactions · search_policy (BM25 RAG)"];
   rules [label="Independent rules engine\\n(second line)"];
   controls [label="Controls\\ngrounding · sanctions hard stop\\ndual control · evidence checks", fillcolor="#fef0c7"];
   analyst [label="Human analyst\\napprove / override", fillcolor="#d1fadf"];
@@ -387,11 +414,17 @@ digraph {
     st.markdown("""
 **How an investigation runs**
 
-1. The LLM receives the alert ID and a system prompt describing the procedure, dispositions and rules.
-2. It calls tools (often several in parallel): KYC profile, typology detectors, transactions, sanctions screening and policy search.
-3. Tool results go back into the conversation; the loop repeats until the model returns a JSON decision.
-4. In parallel, a deterministic rules engine scores the same case independently.
-5. Controls check the proposal before any human sees it, then an analyst approves or overrides it. Every step is logged.
+1. The LLM receives the alert ID and a versioned system prompt describing the procedure, dispositions and rules.
+2. It calls `open_case`, which returns the alert, KYC profile, typology detector findings and sanctions screening.
+3. It decides what else it needs: `get_transactions` to inspect specific activity, `search_policy` to find the
+   policy sections to cite. A clear-cut case may need neither.
+4. Tool results go back into the conversation; the loop repeats until the model returns a JSON decision.
+5. Separately, a deterministic rules engine scores the same case without seeing the model's answer.
+6. Controls check the proposal before any human sees it, then an analyst approves or overrides it. Every step is logged.
+
+**Why one `open_case` call instead of many small tools?** The model calls one tool per turn and each turn re-sends
+the conversation. Bundling the case file cut a typical investigation from about 24,000 tokens and 140 seconds to
+about 6,000 tokens and 2–3 seconds on Groq's free tier, with the same decisions.
 
 **Controls**
 
