@@ -87,6 +87,7 @@ are what the web demo's Claude agent uses.
 | `CTRL-SANCTIONS` | A potential true sanctions match can never be closed or sent for RFI by the agent |
 | `CTRL-DUAL` | LLM vs rules engine disagreement routes the case to a senior analyst |
 | `CTRL-EVIDENCE` | Escalations need evidence; closures need cited mitigation when the risk score is elevated |
+| `CTRL-TIPOFF` | An LLM escalation that suggests contacting the customer is flagged for MLRO approval (tipping-off risk) |
 | `CTRL-HITL` | Nothing is actioned automatically; overrides require a reason |
 | `CTRL-FALLBACK` | If the LLM is unavailable or rate limited, the rules investigator completes the case and says so |
 
@@ -130,7 +131,7 @@ from the command line or the app's Evaluation tab.
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-pytest                                               # 73 tests, no API key needed
+pytest                                               # 74 tests, no API key needed
 streamlit run app.py
 ```
 
@@ -172,7 +173,7 @@ aml_agent/
   report.py       Markdown case report
 data/             synthetic customers, transactions, alerts, sanctions list, labels, policy
 eval/run_eval.py  evaluation harness
-tests/            73 unit tests incl. a scripted mock LLM for the agent loop and controls
+tests/            74 unit tests incl. a scripted mock LLM for the agent loop and controls
 app.py            Streamlit UI
 demo/             self-contained web demo (template + built page)
 scripts/          dataset generator and web demo builder

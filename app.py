@@ -402,6 +402,7 @@ digraph {
 | `CTRL-SANCTIONS` | A potential true sanctions match can never be closed or sent for RFI by the agent |
 | `CTRL-DUAL` | If the LLM and the rules engine disagree, the case goes to a senior analyst |
 | `CTRL-EVIDENCE` | Escalations need cited evidence; closures need mitigating evidence when the risk score is elevated |
+| `CTRL-TIPOFF` | An escalation that suggests contacting the customer is flagged for MLRO approval (tipping-off risk) |
 | `CTRL-HITL` | Nothing is actioned automatically; overrides need a reason |
 | Scope | Tools only return data for the customer on the alert (data minimisation) |
 | `CTRL-FALLBACK` | If Groq is unavailable or rate-limited, the rules investigator completes the case and says so |

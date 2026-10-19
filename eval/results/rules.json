@@ -1,8 +1,8 @@
 {
-  "run_at": "2026-10-19T07:52:27+00:00",
+  "run_at": "2026-10-19T08:00:58+00:00",
   "mode": "rules",
   "model": "rules-engine",
-  "prompt_version": "triage-v1.4",
+  "prompt_version": "triage-v1.5",
   "cases": 13,
   "accuracy": 1.0,
   "escalation_recall": 1.0,
@@ -53,7 +53,7 @@
   "avg_tool_calls": 7.0,
   "avg_llm_calls": 0.0,
   "avg_tokens": 0,
-  "avg_latency_ms": 25,
+  "avg_latency_ms": 19,
   "rows": [
     {
       "alert_id": "ALT-1001",
@@ -72,7 +72,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 16,
+      "latency_ms": 11,
       "fallback_reason": null
     },
     {
@@ -92,7 +92,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 18,
+      "latency_ms": 12,
       "fallback_reason": null
     },
     {
@@ -114,7 +114,7 @@
       "tool_calls": 8,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 25,
+      "latency_ms": 18,
       "fallback_reason": null
     },
     {
@@ -134,7 +134,7 @@
       "tool_calls": 8,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 11,
+      "latency_ms": 9,
       "fallback_reason": null
     },
     {
@@ -154,7 +154,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 34,
+      "latency_ms": 24,
       "fallback_reason": null
     },
     {
@@ -174,7 +174,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 23,
+      "latency_ms": 17,
       "fallback_reason": null
     },
     {
@@ -214,7 +214,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 21,
+      "latency_ms": 13,
       "fallback_reason": null
     },
     {
@@ -234,7 +234,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 28,
+      "latency_ms": 26,
       "fallback_reason": null
     },
     {
@@ -314,7 +314,7 @@
       "tool_calls": 6,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 100,
+      "latency_ms": 68,
       "fallback_reason": null
     }
   ]

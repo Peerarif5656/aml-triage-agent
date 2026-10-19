@@ -5,6 +5,7 @@ CTRL-GROUNDING  every cited identifier must have been returned by a tool in this
 CTRL-SANCTIONS  a potential true sanctions match can never be closed or sent for RFI
 CTRL-DUAL       if the LLM and the independent rules engine disagree, a senior analyst reviews
 CTRL-EVIDENCE   escalations need evidence; closures need mitigation when the rules score is elevated
+CTRL-TIPOFF     an LLM-written escalation that suggests contacting the customer is flagged for MLRO approval
 CTRL-HITL       nothing is actioned automatically: every case waits for an analyst decision
 """
 from __future__ import annotations
@@ -14,6 +15,17 @@ import re
 
 from . import config as C
 from .tools import ID_PATTERN
+
+CUSTOMER_CONTACT = re.compile(
+    r"\b(rfi|source[- ]of[- ](?:funds|wealth)|customer (?:contact|outreach)|"
+    r"(?:contact|ask|inform|notify|tell|call|email|write to|reach out to|request\b.{0,40}\bfrom) (?:the )?customer)\b",
+    re.I)
+NEGATED = re.compile(r"\b(do not|don't|never|must not|avoid|without)\b", re.I)
+
+
+def customer_contact_actions(actions: list[str]) -> list[str]:
+    """Recommended actions that would involve contacting the customer (ignoring 'do not ...' warnings)."""
+    return [a for a in actions if CUSTOMER_CONTACT.search(a) and not NEGATED.search(a)]
 
 
 def normalize_decision(obj) -> dict | None:
@@ -107,6 +119,15 @@ def apply_controls(proposed: dict, rules: dict, seen_ids: set[str], mode: str) -
         else:
             flags.append({"control": "CTRL-SANCTIONS", "severity": "INFO",
                           "message": "Potential true sanctions match: hold the payment and refer to the sanctions team."})
+
+    # CTRL-TIPOFF -------------------------------------------------------------
+    if mode == "llm" and d["disposition"] == "ESCALATE":
+        contact = customer_contact_actions(d["recommended_actions"])
+        if contact:
+            flags.append({"control": "CTRL-TIPOFF", "severity": "WARN",
+                          "message": f"{len(contact)} recommended action(s) would contact the customer while the case "
+                                     f"is being escalated: \"{contact[0]}\". Get MLRO approval before any customer "
+                                     f"contact (tipping-off risk, POL-SAR-01)."})
 
     # CTRL-DUAL ---------------------------------------------------------------
     if mode == "llm" and d["disposition"] != rules["disposition"]:

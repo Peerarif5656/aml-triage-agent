@@ -164,3 +164,22 @@ def test_compact_toolset_is_default_for_llm(store):
     granular = ScriptedLLM([[("get_alert", {"alert_id": "ALT-1003"})], final])
     TriageAgent(store, llm=granular, mode="llm", toolset="granular").run("ALT-1003")
     assert "detect_typologies" in granular.calls[0]["tools"]
+
+
+def test_tipoff_control_flags_customer_contact_on_escalation(store):
+    from aml_agent.controls import customer_contact_actions
+    actions = ["Request detailed source of funds and purpose of transfers (RFI) as part of escalation",
+               "Request detailed source-of-funds documentation from the customer",
+               "Do not inform the customer (tipping off).",
+               "Refer to L2 investigations / MLRO for SAR consideration (POL-SAR-01).",
+               "Identify and notify the paying banks via the fraud channel.",
+               "Place temporary transaction restriction on account"]
+    assert customer_contact_actions(actions) == actions[:2]
+    final = {"disposition": "ESCALATE", "risk_score": 85, "confidence": "HIGH",
+             "key_findings": [{"finding": "Pass-through", "evidence": ["TX-105-0048"]}],
+             "mitigating_factors": [], "policy_refs": ["POL-MULE-01"], "narrative": "Mule pattern.",
+             "recommended_actions": actions[:1] + actions[2:4]}
+    r = TriageAgent(store, llm=ScriptedLLM([[("open_case", {"alert_id": "ALT-1005"})], final]), mode="llm").run("ALT-1005")
+    flag = next(f for f in r.controls if f["control"] == "CTRL-TIPOFF")
+    assert "MLRO approval" in flag["message"] and flag["severity"] == "WARN"
+    assert r.decision["recommended_actions"] == final["recommended_actions"]  # flagged, not removed

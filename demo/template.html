@@ -380,6 +380,7 @@ footer a { color: var(--accent); }
             <tr><td>CTRL-SANCTIONS</td><td>A potential true sanctions match can never be closed by the agent</td></tr>
             <tr><td>CTRL-DUAL</td><td>If the model and the independent rules engine disagree, a senior analyst reviews</td></tr>
             <tr><td>CTRL-EVIDENCE</td><td>Escalations need evidence; closures need mitigation when the score is elevated</td></tr>
+            <tr><td>CTRL-TIPOFF</td><td>An escalation that suggests contacting the customer is flagged for MLRO approval</td></tr>
             <tr><td>CTRL-HITL</td><td>Nothing is actioned automatically; overrides need a reason</td></tr>
           </table></div>
         </section>
@@ -387,7 +388,7 @@ footer a { color: var(--accent); }
       <section class="panel prose">
         <h3>Two ways to run it</h3>
         <p><strong>This page</strong> runs the offline investigator for everyone. Opened in Claude, it can also run the live agent: Claude calls this page's own functions as tools, so you can watch each call in the trace.</p>
-        <p><strong>The Python project</strong> runs the same design on Groq (GPT-OSS 120B by default) behind a Streamlit app, with 73 unit tests, a scripted mock LLM for testing the loop and controls, and an evaluation harness.</p>
+        <p><strong>The Python project</strong> runs the same design on Groq (GPT-OSS 120B by default) behind a Streamlit app, with 74 unit tests, a scripted mock LLM for testing the loop and controls, and an evaluation harness.</p>
       </section>
     </div>
   </section>
@@ -556,6 +557,8 @@ function normalizeDecision(obj) {
     key_findings: items("key_findings", "finding"), mitigating_factors: items("mitigating_factors", "factor"),
     policy_refs: strings("policy_refs"), narrative: String(obj.narrative || ""), recommended_actions: strings("recommended_actions") };
 }
+const CUSTOMER_CONTACT = /\b(rfi|source[- ]of[- ](?:funds|wealth)|customer (?:contact|outreach)|(?:contact|ask|inform|notify|tell|call|email|write to|reach out to|request\b.{0,40}\bfrom) (?:the )?customer)\b/i;
+const NEGATED = /\b(do not|don't|never|must not|avoid|without)\b/i;
 function applyControls(proposed, rules, seen, mode) {
   const d = JSON.parse(JSON.stringify(proposed)); const flags = []; let senior = false;
   const cited = new Set();
@@ -580,6 +583,10 @@ function applyControls(proposed, rules, seen, mode) {
       flags.push({ control: "CTRL-SANCTIONS", severity: "CRITICAL", message: `Recommendation changed from ${d.disposition} to ESCALATE: potential true sanctions match cannot be closed at L1 (POL-SAN-02).` });
       d.disposition = "ESCALATE"; d.risk_score = Math.max(d.risk_score, 90); senior = true;
     } else flags.push({ control: "CTRL-SANCTIONS", severity: "INFO", message: "Potential true sanctions match: hold the payment and refer to the sanctions team." });
+  }
+  if (mode === "llm" && d.disposition === "ESCALATE") {
+    const contact = d.recommended_actions.filter((a) => CUSTOMER_CONTACT.test(a) && !NEGATED.test(a));
+    if (contact.length) flags.push({ control: "CTRL-TIPOFF", severity: "WARN", message: `${contact.length} recommended action(s) would contact the customer while the case is being escalated: "${contact[0]}". Get MLRO approval before any customer contact (tipping-off risk, POL-SAR-01).` });
   }
   if (mode === "llm" && d.disposition !== rules.disposition) {
     flags.push({ control: "CTRL-DUAL", severity: "WARN", message: `LLM recommends ${d.disposition}; independent rules engine scores ${rules.score} (${rules.disposition}). Senior analyst review required.` });
