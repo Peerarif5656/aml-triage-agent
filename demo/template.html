@@ -557,7 +557,7 @@ function normalizeDecision(obj) {
     key_findings: items("key_findings", "finding"), mitigating_factors: items("mitigating_factors", "factor"),
     policy_refs: strings("policy_refs"), narrative: String(obj.narrative || ""), recommended_actions: strings("recommended_actions") };
 }
-const CUSTOMER_CONTACT = /\b(rfi|source[- ]of[- ](?:funds|wealth)|customer (?:contact|outreach)|(?:contact|ask|inform|notify|tell|call|email|write to|reach out to|request\b.{0,40}\bfrom) (?:the )?customer)\b/i;
+const CUSTOMER_CONTACT = /\b(rfi|customer (?:contact|outreach)|(?:request|ask for|obtain|seek)\b.{0,40}\bsource[- ]of[- ](?:funds|wealth)|(?:contact|ask|inform|notify|tell|call|email|write to|reach out to|request\b.{0,40}\bfrom) (?:the )?customer)\b/i;
 const NEGATED = /\b(do not|don't|never|must not|avoid|without)\b/i;
 function applyControls(proposed, rules, seen, mode) {
   const d = JSON.parse(JSON.stringify(proposed)); const flags = []; let senior = false;
@@ -586,7 +586,7 @@ function applyControls(proposed, rules, seen, mode) {
   }
   if (mode === "llm" && d.disposition === "ESCALATE") {
     const contact = d.recommended_actions.filter((a) => CUSTOMER_CONTACT.test(a) && !NEGATED.test(a));
-    if (contact.length) flags.push({ control: "CTRL-TIPOFF", severity: "WARN", message: `${contact.length} recommended action(s) would contact the customer while the case is being escalated: "${contact[0]}". Get MLRO approval before any customer contact (tipping-off risk, POL-SAR-01).` });
+    if (contact.length) flags.push({ control: "CTRL-TIPOFF", severity: "WARN", message: `${contact.length} recommended action(s) may involve contacting the customer while the case is being escalated: "${contact[0]}". Get MLRO approval before any customer contact (tipping-off risk, POL-SAR-01).` });
   }
   if (mode === "llm" && d.disposition !== rules.disposition) {
     flags.push({ control: "CTRL-DUAL", severity: "WARN", message: `LLM recommends ${d.disposition}; independent rules engine scores ${rules.score} (${rules.disposition}). Senior analyst review required.` });

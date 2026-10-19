@@ -173,7 +173,8 @@ def test_tipoff_control_flags_customer_contact_on_escalation(store):
                "Do not inform the customer (tipping off).",
                "Refer to L2 investigations / MLRO for SAR consideration (POL-SAR-01).",
                "Identify and notify the paying banks via the fraud channel.",
-               "Place temporary transaction restriction on account"]
+               "Place temporary transaction restriction on account",
+               "Conduct enhanced due diligence on the counterparty and source of funds"]
     assert customer_contact_actions(actions) == actions[:2]
     final = {"disposition": "ESCALATE", "risk_score": 85, "confidence": "HIGH",
              "key_findings": [{"finding": "Pass-through", "evidence": ["TX-105-0048"]}],

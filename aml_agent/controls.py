@@ -17,7 +17,8 @@ from . import config as C
 from .tools import ID_PATTERN
 
 CUSTOMER_CONTACT = re.compile(
-    r"\b(rfi|source[- ]of[- ](?:funds|wealth)|customer (?:contact|outreach)|"
+    r"\b(rfi|customer (?:contact|outreach)|"
+    r"(?:request|ask for|obtain|seek)\b.{0,40}\bsource[- ]of[- ](?:funds|wealth)|"
     r"(?:contact|ask|inform|notify|tell|call|email|write to|reach out to|request\b.{0,40}\bfrom) (?:the )?customer)\b",
     re.I)
 NEGATED = re.compile(r"\b(do not|don't|never|must not|avoid|without)\b", re.I)
@@ -125,7 +126,7 @@ def apply_controls(proposed: dict, rules: dict, seen_ids: set[str], mode: str) -
         contact = customer_contact_actions(d["recommended_actions"])
         if contact:
             flags.append({"control": "CTRL-TIPOFF", "severity": "WARN",
-                          "message": f"{len(contact)} recommended action(s) would contact the customer while the case "
+                          "message": f"{len(contact)} recommended action(s) may involve contacting the customer while the case "
                                      f"is being escalated: \"{contact[0]}\". Get MLRO approval before any customer "
                                      f"contact (tipping-off risk, POL-SAR-01)."})
 
