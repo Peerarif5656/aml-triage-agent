@@ -2,9 +2,13 @@
 
 Run locally:   streamlit run app.py
 Deploy:        Streamlit Community Cloud, with GROQ_API_KEY in the app's secrets.
+
+Design: a Level 1 analyst's case workbench. Quiet ink-navy and cool grey surfaces; the one loud element is
+the disposition stamp on the case file. Theme colours and fonts live in .streamlit/config.toml.
 """
 from __future__ import annotations
 
+import html
 import json
 import os
 from datetime import date, datetime, timedelta
@@ -21,38 +25,208 @@ from aml_agent.report import render_case_report
 from eval.run_eval import RESULTS_DIR, evaluate, to_markdown
 
 REPO_URL = "https://github.com/Peerarif5656/aml-triage-agent"
-DEMO_CASES = [  # a three-case walkthrough that shows escalation, a cleared false positive and a hard control
-    ("ALT-1005", "Student account used as a money mule", "ESCALATE"),
-    ("ALT-1002", "£287k credit explained by a documented house sale", "CLOSE"),
-    ("ALT-1003", "Payment to a sanctioned entity", "ESCALATE + sanctions control"),
+DEMO_CASES = [  # a three-case walkthrough: a real escalation, a cleared false positive and a hard control
+    ("ALT-1005", "Student account used as a money mule", "Escalate"),
+    ("ALT-1002", "£287k credit explained by a documented house sale", "Close"),
+    ("ALT-1003", "Payment to an entity on the sanctions list", "Escalate, with the sanctions control"),
 ]
+DISPLAY = {"ESCALATE": "Escalate", "RFI": "Request info", "CLOSE": "Close"}
+ACTOR_LABEL = {"SYSTEM": "System", "TOOL": "Tool", "AGENT": "Agent", "CONTROL": "Control", "ANALYST": "Analyst"}
 
 st.set_page_config(page_title="AML Alert Triage Agent", page_icon="🛡️", layout="wide",
                    menu_items={"Get help": REPO_URL, "Report a bug": REPO_URL + "/issues",
                                "About": "AML Alert Triage Agent by Peer Arif. An agentic AI investigator for bank "
                                         "AML and sanctions alerts. All data is synthetic."})
 
-STYLE = {"ESCALATE": ("#b42318", "#fef3f2"), "RFI": ("#b54708", "#fffaeb"), "CLOSE": ("#067647", "#ecfdf3")}
-ACTOR_ICON = {"SYSTEM": "⚙️", "TOOL": "🔧", "AGENT": "🤖", "CONTROL": "🛡️", "ANALYST": "👤"}
-
+# ----------------------------------------------------------------------------- styles
 st.markdown("""
 <style>
-.badge {display:inline-block;padding:0.35rem 0.9rem;border-radius:999px;font-weight:700;font-size:1.05rem;
-        letter-spacing:0.02em;border:1px solid currentColor;}
-.small-label {font-size:0.8rem;opacity:0.7;margin-bottom:0.25rem;}
-.evidence code {font-size:0.78rem;}
-.kpis {display:flex;flex-wrap:wrap;gap:0.75rem 1.75rem;align-items:flex-end;margin:0.25rem 0 0.5rem;}
-.kpi .k {font-size:0.75rem;opacity:0.7;text-transform:uppercase;letter-spacing:0.06em;}
-.kpi .v {font-size:1.15rem;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
-.kpi .v small {font-weight:500;opacity:0.7;}
+:root {
+  --ink: #12284B; --ink-2: #2A3F63; --paper: #F4F6F9; --surface: #FFFFFF; --rule: #D9DFE7; --rule-2: #E8ECF1;
+  --text: #16233A; --muted: #5B6676; --accent: #0E6B66; --accent-bg: #E3F1EF;
+  --esc: #B42318; --esc-bg: #FDEEEC; --rfi: #94560A; --rfi-bg: #FDF3E1; --close: #0B7344; --close-bg: #E5F3EB;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.block-container { padding-top: 1.6rem; padding-bottom: 3rem; max-width: 1360px; }
+h1, h2, h3, h4 { letter-spacing: -0.01em; }
+
+/* masthead */
+.mast { background: var(--ink); color: #fff; border-radius: 10px; padding: 20px 24px; margin-bottom: 4px;
+        display: flex; flex-wrap: wrap; gap: 14px 32px; align-items: flex-end; justify-content: space-between; }
+.mast .name { font-size: 1.6rem; font-weight: 600; line-height: 1.2; letter-spacing: -0.015em; }
+.mast .lede { color: #C7D1E2; margin-top: 6px; font-size: 0.97rem; max-width: 68ch; line-height: 1.5; }
+.mast .facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.mast .fact { border: 1px solid rgba(255,255,255,.25); color: #E4EAF3; border-radius: 999px; padding: 4px 11px;
+              font-size: 0.8rem; white-space: nowrap; }
+
+/* tabs */
+.stTabs [data-baseweb="tab-list"] { gap: 6px; border-bottom: 1px solid var(--rule); }
+.stTabs [data-baseweb="tab"] { font-weight: 600; padding: 10px 14px; }
+
+/* queue */
+.queue { width: 100%; border-collapse: collapse; font-size: 0.88rem; background: var(--surface);
+         border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.queue th { text-align: left; font-weight: 600; color: var(--muted); font-size: 0.78rem; padding: 8px 10px;
+            background: #EEF1F5; border-bottom: 1px solid var(--rule); }
+.queue td { padding: 7px 10px; border-bottom: 1px solid var(--rule-2); color: var(--text); vertical-align: middle; }
+.queue tr:last-child td { border-bottom: 0; }
+.queue tr.sel td { background: var(--accent-bg); }
+.queue tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.qwrap { max-height: 372px; overflow-y: auto; border-radius: 8px; }
+.ref { font-family: var(--mono); font-size: 0.82rem; color: var(--ink-2); white-space: nowrap; }
+.pill { display: inline-block; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+        white-space: nowrap; background: #EEF1F5; color: var(--muted); }
+.pill.HIGH { background: var(--esc-bg); color: var(--esc); }
+.pill.MEDIUM { background: var(--rfi-bg); color: var(--rfi); }
+.pill.LOW { background: #EEF1F5; color: var(--muted); }
+.pill.ESCALATE { background: var(--esc-bg); color: var(--esc); }
+.pill.RFI { background: var(--rfi-bg); color: var(--rfi); }
+.pill.CLOSE { background: var(--close-bg); color: var(--close); }
+
+/* case card */
+.case { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; }
+.case .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.case .who { font-size: 1.15rem; font-weight: 600; color: var(--ink); margin-top: 8px; }
+.case .occ { color: var(--muted); font-size: 0.88rem; margin-top: 2px; }
+.case .rule { margin-top: 12px; font-weight: 600; font-size: 0.92rem; color: var(--text); }
+.case .trig { margin-top: 4px; color: var(--text); font-size: 0.92rem; line-height: 1.5; }
+.facts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px 16px;
+              margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--rule-2); }
+.facts-grid dt { font-size: 0.76rem; color: var(--muted); }
+.facts-grid dd { margin: 2px 0 0; font-weight: 600; font-size: 0.92rem; color: var(--text); }
+
+/* empty state */
+.start h3 { margin: 0 0 4px; font-size: 1.15rem; color: var(--ink); }
+.start p { color: var(--muted); margin: 0 0 12px; font-size: 0.93rem; }
+.startcase { display: flex; flex-direction: column; gap: 2px; }
+.startcase .t { font-weight: 600; color: var(--text); }
+.startcase .e { color: var(--muted); font-size: 0.86rem; }
+
+/* verdict */
+.verdict { display: flex; flex-wrap: wrap; gap: 18px 30px; align-items: center; background: var(--surface);
+           border: 1px solid var(--rule); border-radius: 10px; padding: 20px 22px; }
+.stamp { font-size: 1.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1;
+         padding: 12px 18px 10px; border: 3px solid currentColor; border-radius: 6px; transform: rotate(-3deg);
+         box-shadow: inset 0 0 0 2px var(--surface), inset 0 0 0 4px currentColor; white-space: nowrap; }
+.stamp.ESCALATE { color: var(--esc); background: var(--esc-bg); }
+.stamp.RFI { color: var(--rfi); background: var(--rfi-bg); }
+.stamp.CLOSE { color: var(--close); background: var(--close-bg); }
+.vbody { flex: 1; min-width: 260px; }
+.vhead { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.vhead .score { font-size: 2rem; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.vhead .of { color: var(--muted); }
+.vhead .lbl { color: var(--muted); font-size: 0.88rem; margin-left: 4px; }
+.meter { position: relative; height: 10px; border-radius: 5px; margin: 10px 0 6px;
+         background: linear-gradient(90deg, var(--close-bg) 0 20%, var(--rfi-bg) 20% 60%, var(--esc-bg) 60% 100%);
+         border: 1px solid var(--rule); }
+.meter .tick { position: absolute; top: -4px; bottom: -4px; width: 1px; background: #9AA5B5; }
+.meter .mk { position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%; transform: translate(-50%, -50%);
+             background: var(--ink); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--ink); }
+.meter .mk.rules { width: 10px; height: 10px; border-radius: 2px; background: var(--accent); top: calc(50% + 13px);
+                   transform: translate(-50%, -50%) rotate(45deg); box-shadow: none; }
+.scale { position: relative; height: 16px; font-size: 0.72rem; color: var(--muted); margin-top: 14px; }
+.scale span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.scale span.l { transform: none; } .scale span.r { transform: translateX(-100%); }
+.vnote { color: var(--muted); font-size: 0.86rem; margin-top: 6px; }
+.vnote b { color: var(--text); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px 18px; margin: 14px 0 4px; }
+.stat .k { font-size: 0.78rem; color: var(--muted); }
+.stat .v { font-size: 1rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* control flags */
+.flag { display: flex; gap: 12px; align-items: flex-start; padding: 10px 14px; border-radius: 8px; margin: 8px 0;
+        background: #EEF1F5; color: var(--text); font-size: 0.9rem; line-height: 1.45; }
+.flag .code { font-family: var(--mono); font-size: 0.76rem; font-weight: 600; padding: 2px 7px; border-radius: 4px;
+              background: var(--surface); white-space: nowrap; color: var(--ink-2); }
+.flag.CRITICAL { background: var(--esc-bg); } .flag.CRITICAL .code { color: var(--esc); }
+.flag.WARN, .flag.HIGH { background: var(--rfi-bg); } .flag.WARN .code, .flag.HIGH .code { color: var(--rfi); }
+.flag.INFO { background: var(--accent-bg); } .flag.INFO .code { color: var(--accent); }
+.flag.REVIEW { background: var(--rfi-bg); font-weight: 600; }
+
+/* findings */
+.sect { margin: 22px 0 6px; font-weight: 600; font-size: 1.02rem; color: var(--ink); }
+.items { list-style: none; margin: 0; padding: 0; }
+.items li { padding: 10px 0 10px 16px; border-bottom: 1px solid var(--rule-2); position: relative; line-height: 1.5; }
+.items li:last-child { border-bottom: 0; }
+.items li::before { content: ""; position: absolute; left: 0; top: 17px; width: 7px; height: 7px; border-radius: 50%;
+                    background: var(--ink-2); }
+.items.mit li::before { background: var(--close); }
+.items.act li::before { border-radius: 1px; background: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip { font-family: var(--mono); font-size: 0.74rem; padding: 1px 6px; border-radius: 4px; color: var(--ink-2);
+        background: #EEF1F5; border: 1px solid var(--rule); }
+.none { color: var(--muted); font-style: italic; }
+
+/* trace */
+.trace { display: flex; flex-direction: column; }
+.tr { display: grid; grid-template-columns: 70px 74px minmax(0, 1fr); gap: 10px; padding: 7px 0;
+      border-bottom: 1px dashed var(--rule); font-size: 0.86rem; line-height: 1.45; align-items: baseline; }
+.tr:last-child { border-bottom: 0; }
+.tr .t { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); text-align: right; }
+.tr .a { font-size: 0.72rem; font-weight: 600; text-align: center; border-radius: 4px; padding: 1px 6px;
+         background: #EEF1F5; color: var(--muted); }
+.tr .a.TOOL { background: var(--accent-bg); color: var(--accent); }
+.tr .a.AGENT { background: #E7ECF6; color: var(--ink-2); }
+.tr .a.CONTROL { background: var(--rfi-bg); color: var(--rfi); }
+.tr .a.ANALYST { background: var(--close-bg); color: var(--close); }
+.tr .w { min-width: 0; overflow-wrap: anywhere; color: var(--text); }
+.tr .w code { font-family: var(--mono); font-size: 0.8rem; background: none; color: var(--ink); padding: 0; }
+.tr .w .s { color: var(--muted); }
+
+/* evaluation */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 6px 0 14px; }
+.tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; }
+.tile .v { font-size: 1.7rem; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1.2; }
+.tile .k { font-size: 0.86rem; font-weight: 600; color: var(--text); }
+.tile .d { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+.cm { border-collapse: separate; border-spacing: 4px; font-variant-numeric: tabular-nums; }
+.cm th { font-size: 0.78rem; color: var(--muted); font-weight: 600; padding: 4px 8px; text-align: center; }
+.cm th.row { text-align: right; }
+.cm td { width: 64px; height: 44px; text-align: center; font-weight: 600; border-radius: 6px; background: #EEF1F5; }
+.cm td.diag { background: var(--close-bg); color: var(--close); }
+.cm td.miss { background: var(--esc-bg); color: var(--esc); }
+.runhead { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 4px; }
+.runhead .n { font-weight: 600; font-size: 1.05rem; color: var(--ink); }
+.runhead .m { color: var(--muted); font-size: 0.86rem; }
+
+/* sidebar */
+section[data-testid="stSidebar"] .side-name { font-weight: 600; color: var(--ink); font-size: 1.02rem; }
+.footer-note { color: var(--muted); font-size: 0.82rem; }
+@media (max-width: 640px) { .tr { grid-template-columns: 58px minmax(0, 1fr); } .tr .a { grid-column: 2; justify-self: start; }
+  .tr .w { grid-column: 1 / -1; } .stamp { font-size: 1.35rem; } }
 </style>
 """, unsafe_allow_html=True)
 
 
-def kpis(items: list[tuple[str, str]]) -> str:
-    """Compact label/value row that wraps instead of truncating (st.metric truncates in narrow columns)."""
-    cells = "".join(f"<div class='kpi'><div class='k'>{k}</div><div class='v'>{v}</div></div>" for k, v in items)
-    return f"<div class='kpis'>{cells}</div>"
+def esc(x) -> str:
+    """Escape any dynamic text before it goes into HTML (model output included)."""
+    return html.escape(str(x), quote=True)
+
+
+def chips(ids: list[str]) -> str:
+    if not ids:
+        return "<div class='chips'><span class='none'>No evidence cited</span></div>"
+    return "<div class='chips'>" + "".join(f"<span class='chip'>{esc(i)}</span>" for i in ids) + "</div>"
+
+
+def trace_row(e: dict) -> str:
+    d, actor = e["detail"], e["actor"]
+    if actor == "TOOL":
+        what = f"<code>{esc(e['action'])}</code> <span class='s'>returned {esc(d['summary'])}</span>"
+    elif actor == "CONTROL" and isinstance(d, dict) and "message" in d:
+        what = f"<b>{esc(e['action'])}</b> <span class='s'>{esc(d['message'])}</span>"
+    elif actor == "CONTROL" and isinstance(d, dict) and "score" in d:
+        what = f"{esc(e['action'])} <span class='s'>scored {esc(d['score'])}, {esc(DISPLAY[d['disposition']])}</span>"
+    elif actor == "AGENT" and isinstance(d, dict) and d.get("calls"):
+        calls = ", ".join(f"<code>{esc(c['tool'])}</code>" for c in d["calls"])
+        what = f"{esc(e['action'].split(':')[0])}: called {calls}"
+    elif actor == "AGENT" and isinstance(d, dict) and "disposition" in d:
+        what = f"{esc(e['action'])} <span class='s'>{esc(DISPLAY.get(d['disposition'], d['disposition']))}, " \
+               f"risk {esc(d.get('risk_score', ''))}</span>"
+    else:
+        what = esc(e["action"])
+    return (f"<div class='tr'><span class='t'>{e['elapsed_ms']:,.0f} ms</span>"
+            f"<span class='a {actor}'>{ACTOR_LABEL.get(actor, actor)}</span><span class='w'>{what}</span></div>")
 
 
 # ----------------------------------------------------------------------------- setup
@@ -75,45 +249,22 @@ def secret_key() -> str | None:
     return key or os.getenv("GROQ_API_KEY")
 
 
-def badge(disposition: str) -> str:
-    fg, bg = STYLE[disposition]
-    return f"<span class='badge' style='color:{fg};background:{bg}'>{disposition}</span>"
-
-
-def evidence(ids: list[str]) -> str:
-    return " ".join(f"`{i}`" for i in ids) if ids else "_no evidence cited_"
-
-
-def format_event(e: dict) -> str:
-    icon = ACTOR_ICON.get(e["actor"], "•")
-    d = e["detail"]
-    if e["actor"] == "TOOL":
-        return f"{icon} `{e['action']}` → {d['summary']}"
-    if e["actor"] == "CONTROL" and isinstance(d, dict) and "message" in d:
-        return f"{icon} **{e['action']}**: {d['message']}"
-    if e["actor"] == "CONTROL" and isinstance(d, dict) and "score" in d:
-        return f"{icon} {e['action']}: score {d['score']} → {d['disposition']}"
-    if e["actor"] == "AGENT" and isinstance(d, dict) and d.get("calls"):
-        calls = ", ".join(c["tool"] for c in d["calls"])
-        return f"{icon} {e['action']}: {calls}"
-    return f"{icon} {e['action']}"
-
-
 store = get_store()
 ss = st.session_state
 ss.setdefault("results", {})
 ss.setdefault("evals", {})
+ss.setdefault("alert_select", DEMO_CASES[0][0])
 
 # ----------------------------------------------------------------------------- sidebar
 with st.sidebar:
-    st.markdown("### Investigator")
+    st.markdown("<div class='side-name'>Investigator settings</div>", unsafe_allow_html=True)
     key_from_secrets = secret_key()
     engine = st.radio("Engine", ["LLM agent (Groq)", "Rules engine (offline)"],
                       index=0 if key_from_secrets else 1,
                       help="The LLM agent decides which tools to call and writes the case. The rules engine "
                            "runs a fixed plan over the same tools; it is also the automatic fallback.")
     use_llm = engine.startswith("LLM")
-    model, api_key = C.DEFAULT_MODEL, key_from_secrets
+    model, api_key, options = C.DEFAULT_MODEL, key_from_secrets, list(C.AVAILABLE_MODELS)
     if use_llm:
         if not key_from_secrets:
             api_key = st.text_input("Groq API key", type="password",
@@ -124,17 +275,16 @@ with st.sidebar:
                                   "prompt caching, which keeps a multi-step investigation within the free tier's "
                                   "per-minute token limit.")
         if key_from_secrets:
-            st.success("Groq API key configured on the server.", icon="🔑")
+            st.caption("Groq API key is configured on the server.")
         elif not api_key:
             st.info("Get a free key at console.groq.com, or switch to the offline rules engine.")
     st.divider()
     st.markdown("**About this demo**")
-    st.caption("All customers, transactions, sanctions entries and jurisdictions are synthetic. "
-               "QK, QM and QV are fictional higher-risk jurisdictions. The policy is illustrative and "
-               "modelled on UK practice.")
-    st.caption(f"Data version `{store.data_version}` · prompt `{C.PROMPT_VERSION}`")
+    st.caption("All customers, transactions, sanctions entries and jurisdictions are synthetic. QK, QM and QV are "
+               "fictional higher-risk jurisdictions. The policy is illustrative and modelled on UK practice.")
+    st.caption(f"Prompt `{C.PROMPT_VERSION}`, data `{store.data_version}`")
     st.divider()
-    st.markdown(f"Built by **Peer Arif** · [Source code and documentation]({REPO_URL})")
+    st.markdown(f"Built by **Peer Arif**  \n[Source code and documentation]({REPO_URL})")
 
 
 def build_agent() -> tuple[TriageAgent | None, str | None]:
@@ -149,83 +299,125 @@ def build_agent() -> tuple[TriageAgent | None, str | None]:
     return TriageAgent(store, mode="rules"), None
 
 
-def status_for(alert_id: str) -> str:
+def status_pill(alert_id: str) -> str:
     r: CaseResult | None = ss.results.get(alert_id)
     if r is None:
-        return "Open"
+        return "<span class='pill'>Open</span>"
     if r.analyst_decision:
-        return f"Decided: {r.analyst_decision['final_disposition']}"
-    return f"Recommended: {r.decision['disposition']}"
+        final = r.analyst_decision["final_disposition"]
+        return f"<span class='pill {final}'>Decided: {DISPLAY[final]}</span>"
+    rec = r.decision["disposition"]
+    return f"<span class='pill {rec}'>{DISPLAY[rec]}</span>"
 
 
-# ----------------------------------------------------------------------------- header
-st.title("🛡️ AML Alert Triage Agent")
-st.caption("An agentic AI investigator for bank transaction monitoring and sanctions alerts. It gathers evidence "
-           "with tools, checks sanctions and policy, and recommends **CLOSE**, **RFI** or **ESCALATE** for a human "
-           "analyst to approve, with guardrails and a full audit trail.")
+def investigate(alert_id: str) -> None:
+    """Select a case and run it on the next render (used by the walkthrough buttons)."""
+    ss.alert_select = alert_id
+    ss.autorun = True
 
-tab_inv, tab_eval, tab_how = st.tabs(["🔎 Investigate", "📊 Evaluation", "🧭 How it works"])
+
+# ----------------------------------------------------------------------------- masthead
+engine_fact = f"Agent: {model}" if use_llm else "Engine: offline rules"
+st.markdown(f"""
+<div class="mast">
+  <div>
+    <div class="name">AML Alert Triage Agent</div>
+    <div class="lede">An AI investigator for bank anti-money laundering and sanctions alerts. It opens the case file,
+    decides what evidence and policy it needs, and recommends Close, Request info or Escalate, for an analyst
+    to approve.</div>
+  </div>
+  <div class="facts">
+    <span class="fact">{esc(engine_fact)}</span>
+    <span class="fact">Human approval on every case</span>
+    <span class="fact">Synthetic data</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+tab_inv, tab_eval, tab_how = st.tabs(["Investigate", "Evaluation", "How it works"])
 
 
 # ----------------------------------------------------------------------------- result view
+def verdict_html(r: CaseResult) -> str:
+    d, rules, m = r.decision, r.rules, r.metrics
+    agrees = d["disposition"] == rules["disposition"]
+    t = {"RFI": C.RFI_THRESHOLD, "ESC": C.ESCALATE_THRESHOLD}
+    investigator = f"LLM agent, {r.model}" if r.mode == "llm" else "Offline rules engine"
+    tokens = f"{m['prompt_tokens'] + m['completion_tokens']:,}" if m.get("llm_calls") else "none"
+    return f"""
+<div class="verdict">
+  <div class="stamp {d['disposition']}">{DISPLAY[d['disposition']]}</div>
+  <div class="vbody">
+    <div class="vhead"><span class="score">{d['risk_score']}</span><span class="of">/100</span>
+      <span class="lbl">risk score, confidence {esc(d['confidence'].lower())}</span></div>
+    <div class="meter" role="img" aria-label="Risk score {d['risk_score']} of 100; rules engine {rules['score']}">
+      <span class="tick" style="left:{t['RFI']}%"></span><span class="tick" style="left:{t['ESC']}%"></span>
+      <span class="mk" style="left:{d['risk_score']}%"></span><span class="mk rules" style="left:{rules['score']}%"></span>
+    </div>
+    <div class="scale"><span class="l" style="left:0">Close</span><span style="left:{t['RFI']}%">Request info</span>
+      <span style="left:{t['ESC']}%">Escalate</span><span class="r" style="left:100%">100</span></div>
+    <div class="vnote">Circle: agent. Diamond: independent rules engine, which scored <b>{rules['score']}</b>
+      ({DISPLAY[rules['disposition']]}) and <b>{'agrees' if agrees else 'disagrees'}</b>.</div>
+  </div>
+</div>
+<div class="stats">
+  <div class="stat"><div class="k">Investigator</div><div class="v">{esc(investigator)}</div></div>
+  <div class="stat"><div class="k">Grounded citations</div><div class="v">{r.grounding['grounded']} of {r.grounding['cited']}</div></div>
+  <div class="stat"><div class="k">Tool calls</div><div class="v">{m['tool_calls']}</div></div>
+  <div class="stat"><div class="k">Tokens</div><div class="v">{tokens}</div></div>
+  <div class="stat"><div class="k">Time</div><div class="v">{m['latency_ms'] / 1000:.1f} s</div></div>
+</div>"""
+
+
 def render_result(r: CaseResult) -> None:
     d = r.decision
-    st.subheader(f"Recommendation for {r.alert_id}")
-    st.markdown(kpis([
-        ("Agent recommends", badge(d["disposition"])),
-        ("Risk score", f"{d['risk_score']}<small>/100</small>"),
-        ("Rules engine (2nd line)", f"{r.rules['disposition']} <small>{r.rules['score']}</small>"),
-        ("Grounded citations", f"{r.grounding['grounded']}/{r.grounding['cited']}"),
-    ]), unsafe_allow_html=True)
-    m = r.metrics
-    st.caption(f"Investigator: **{r.mode}** ({r.model}) · confidence {d['confidence']} · {m['tool_calls']} tool calls"
-               + (f" · {m['llm_calls']} LLM calls · {m['prompt_tokens'] + m['completion_tokens']:,} tokens"
-                  if m.get("llm_calls") else "") + f" · {m['latency_ms'] / 1000:.1f}s · run `{r.run_id}`")
+    customer = store.get_customer(r.customer_id)
+    st.markdown(f"<div class='sect' style='margin-top:4px'>Recommendation for {esc(r.alert_id)}, "
+                f"{esc(customer['name'])}</div>", unsafe_allow_html=True)
+    st.markdown(verdict_html(r), unsafe_allow_html=True)
 
+    flags = ""
     if r.requires_senior_review:
-        st.warning("Senior analyst review required before this case is actioned.", icon="⚠️")
+        flags += ("<div class='flag REVIEW'><span class='code'>REVIEW</span><span>Senior analyst review required before "
+                  "this case is actioned.</span></div>")
     for c in r.controls:
-        text = f"**{c['control']}** · {c['message']}"
-        if c["severity"] == "CRITICAL":
-            st.error(text, icon="🛑")
-        elif c["severity"] in {"WARN", "HIGH"}:
-            st.warning(text, icon="🛡️")
-        else:
-            st.info(text, icon="🛡️")
+        flags += (f"<div class='flag {esc(c['severity'])}'><span class='code'>{esc(c['control'])}</span>"
+                  f"<span>{esc(c['message'])}</span></div>")
+    if r.mode == "llm" and r.proposed_decision["disposition"] != d["disposition"]:
+        flags += (f"<div class='flag INFO'><span class='code'>CONTROLS</span><span>Before controls the agent proposed "
+                  f"{DISPLAY[r.proposed_decision['disposition']]}.</span></div>")
+    if flags:
+        st.markdown(flags, unsafe_allow_html=True)
 
-    st.markdown("#### Key findings")
-    if d["key_findings"]:
-        for kf in d["key_findings"]:
-            st.markdown(f"- {kf['finding']}  \n  <span class='evidence'>Evidence: {evidence(kf['evidence'])}</span>",
-                        unsafe_allow_html=True)
-    else:
-        st.markdown("_None_")
-    st.markdown("#### Mitigating factors")
-    if d["mitigating_factors"]:
-        for mf in d["mitigating_factors"]:
-            st.markdown(f"- {mf['factor']}  \n  <span class='evidence'>Evidence: {evidence(mf['evidence'])}</span>",
-                        unsafe_allow_html=True)
-    else:
-        st.markdown("_None_")
-    st.markdown("#### Recommended actions")
-    for a in d["recommended_actions"]:
-        st.markdown(f"- {a}")
-    st.caption("Policy references: " + (", ".join(d["policy_refs"]) or "none"))
+    def items(rows, key, cls):
+        if not rows:
+            return "<p class='none'>None</p>"
+        return f"<ul class='items {cls}'>" + "".join(
+            f"<li>{esc(x[key])}{chips(x['evidence'])}</li>" for x in rows) + "</ul>"
+
+    actions = ("<ul class='items act'>" + "".join(f"<li>{esc(a)}</li>" for a in d["recommended_actions"]) + "</ul>"
+               if d["recommended_actions"] else "<p class='none'>None</p>")
+    policy = chips(d["policy_refs"]) if d["policy_refs"] else "<p class='none'>None cited</p>"
+    st.markdown(
+        "<div class='sect'>Key findings</div>" + items(d["key_findings"], "finding", "")
+        + "<div class='sect'>Mitigating factors</div>" + items(d["mitigating_factors"], "factor", "mit")
+        + "<div class='sect'>Recommended actions</div>" + actions
+        + "<div class='sect'>Policy cited</div>" + policy, unsafe_allow_html=True)
 
     # ---- human in the loop
-    st.markdown("#### Analyst decision")
+    st.markdown("<div class='sect'>Analyst decision</div>", unsafe_allow_html=True)
     if r.analyst_decision:
         a = r.analyst_decision
-        st.success(f"**{a['action']}** by {a['analyst']}: final disposition **{a['final_disposition']}**"
-                   + (f". Reason: {a['reason']}" if a.get("reason") else "."), icon="✅")
+        st.success(f"{a['action'].title()} by {a['analyst']}. Final disposition: {DISPLAY[a['final_disposition']]}"
+                   + (f". Reason: {a['reason']}" if a.get("reason") else "."))
     else:
-        with st.form(key=f"decide_{r.run_id}"):
-            narrative = st.text_area("Case narrative (edit before filing if needed)", value=d["narrative"], height=200)
+        with st.form(key=f"decide_{r.run_id}", border=True):
+            narrative = st.text_area("Case narrative (edit before filing if needed)", value=d["narrative"], height=190)
             col_a, col_b = st.columns(2)
             analyst = col_a.text_input("Analyst", value="L1 Analyst")
             choice = col_b.radio("Decision", ["Approve recommendation", "Override"], horizontal=True)
             override_to = st.selectbox("If overriding, final disposition", C.DISPOSITIONS,
-                                       index=C.DISPOSITIONS.index(d["disposition"]))
+                                       index=C.DISPOSITIONS.index(d["disposition"]), format_func=DISPLAY.get)
             reason = st.text_input("Reason (required when overriding)")
             if st.form_submit_button("Submit decision", type="primary"):
                 approved = choice.startswith("Approve")
@@ -237,14 +429,14 @@ def render_result(r: CaseResult) -> None:
                     st.error(str(e))
 
     dl1, dl2 = st.columns(2)
-    dl1.download_button("⬇️ Case report (.md)", render_case_report(r), file_name=f"{r.alert_id}_case_report.md",
+    dl1.download_button("Download case report", render_case_report(r), file_name=f"{r.alert_id}_case_report.md",
                         mime="text/markdown", width="stretch")
-    dl2.download_button("⬇️ Full audit trail (.json)", json.dumps(r.to_dict(), indent=2, default=str),
+    dl2.download_button("Download audit trail (JSON)", json.dumps(r.to_dict(), indent=2, default=str),
                         file_name=f"{r.alert_id}_{r.run_id}_audit.json", mime="application/json", width="stretch")
 
-    with st.expander("Investigation trace (every step the agent took)"):
-        for e in r.audit.events:
-            st.markdown(f"`{e['elapsed_ms']:>8.0f} ms` " + format_event(e))
+    with st.expander(f"Investigation trace: {len(r.audit.events)} steps, run {r.run_id}"):
+        st.markdown("<div class='trace'>" + "".join(trace_row(e) for e in r.audit.events) + "</div>",
+                    unsafe_allow_html=True)
     with st.expander("Detector findings"):
         if r.findings:
             st.dataframe(pd.DataFrame([{"Typology": f["typology"], "Mitigated": f["mitigated"],
@@ -262,47 +454,65 @@ def render_result(r: CaseResult) -> None:
                                         "Secondary identifiers": ", ".join(f"{k}: {v}" for k, v in
                                                                            h["secondary_identifiers"].items())}
                                        for h in r.screening["hits"]]), hide_index=True, width="stretch")
-    with st.expander("Rules engine score breakdown"):
+    with st.expander("Rules engine scoring"):
         st.dataframe(pd.DataFrame(r.rules["drivers"]), hide_index=True, width="stretch")
-        st.caption(f"Thresholds: ESCALATE ≥ {C.ESCALATE_THRESHOLD}, RFI ≥ {C.RFI_THRESHOLD}.")
-    if r.mode == "llm" and r.proposed_decision["disposition"] != r.decision["disposition"]:
-        st.caption(f"Before controls the model proposed {r.proposed_decision['disposition']}.")
+        st.caption(f"Thresholds: Escalate at {C.ESCALATE_THRESHOLD} or more, Request info at {C.RFI_THRESHOLD} or more.")
+
+
+def queue_html(alerts: list[dict], selected: str) -> str:
+    rows = "".join(
+        f"<tr class='{'sel' if a['alert_id'] == selected else ''}'><td><span class='ref'>{esc(a['alert_id'])}</span></td>"
+        f"<td>{esc(store.get_customer(a['customer_id'])['name'])}</td>"
+        f"<td><span class='pill {a['priority']}'>{a['priority'].title()}</span></td>"
+        f"<td>{status_pill(a['alert_id'])}</td></tr>" for a in alerts)
+    return ("<div class='qwrap'><table class='queue'><thead><tr><th>Alert</th><th>Customer</th><th>Priority</th>"
+            f"<th>Status</th></tr></thead><tbody>{rows}</tbody></table></div>")
+
+
+def case_html(alert: dict, customer: dict) -> str:
+    kind = customer["customer_type"].title()
+    income_label = "Declared income" if customer["customer_type"] == "individual" else "Declared turnover"
+    facts = [("Customer type", kind), ("KYC risk", customer["risk_rating"].title() + (", PEP" if customer.get("pep") else "")),
+             ("Customer since", customer["account_opened"][:4]), ("Raised", alert["alert_date"]),
+             (income_label, f"£{customer['declared_annual_income']:,} a year"),
+             ("Expected inflow", f"£{customer['expected_monthly_inflow']:,} a month")]
+    grid = "".join(f"<div><dt>{esc(k)}</dt><dd>{esc(v)}</dd></div>" for k, v in facts)
+    return f"""
+<div class="case">
+  <div class="top"><span class="ref">{esc(alert['alert_id'])} / {esc(alert['rule_id'])}</span>
+    <span class="pill {alert['priority']}">{alert['priority'].title()} priority</span></div>
+  <div class="who">{esc(customer['name'])}</div>
+  <div class="occ">{esc(customer['occupation'])}</div>
+  <div class="rule">{esc(alert['rule_name'])}</div>
+  <div class="trig">{esc(alert['trigger_summary'])}</div>
+  <dl class="facts-grid">{grid}</dl>
+</div>"""
 
 
 # ----------------------------------------------------------------------------- investigate tab
 with tab_inv:
     alerts = store.alert_list()
-    left, right = st.columns([0.4, 0.6], gap="large")
+    alert_ids = [a["alert_id"] for a in alerts]
+    left, right = st.columns([0.42, 0.58], gap="large")
     with left:
-        st.subheader("Alert queue")
-        st.dataframe(pd.DataFrame([{
-            "Alert": a["alert_id"], "Customer": store.get_customer(a["customer_id"])["name"],
-            "Priority": a["priority"], "Status": status_for(a["alert_id"])} for a in alerts]),
-            hide_index=True, width="stretch", height=300)
-        alert_ids = [a["alert_id"] for a in alerts]
-        alert_id = st.selectbox("Alert to investigate", alert_ids, index=alert_ids.index(DEMO_CASES[0][0]),
-                                format_func=lambda x: f"{x} · {store.get_customer(store.get_alert(x)['customer_id'])['name']}")
+        alert_id = st.selectbox("Case to investigate", alert_ids, key="alert_select",
+                                format_func=lambda x: f"{x}  {store.get_customer(store.get_alert(x)['customer_id'])['name']}")
         alert = store.get_alert(alert_id)
         customer = store.get_customer(alert["customer_id"])
-        with st.container(border=True):
-            st.markdown(f"**{alert['rule_id']}** · {alert['rule_name']}")
-            st.write(alert["trigger_summary"])
-            st.markdown(kpis([("Customer type", customer["customer_type"].title()),
-                              ("KYC risk", customer["risk_rating"].title()),
-                              ("Priority", alert["priority"].title()),
-                              ("Raised", alert["alert_date"])]), unsafe_allow_html=True)
-            st.caption(f"{customer['name']} · {customer['occupation']} · customer since "
-                       f"{customer['account_opened'][:4]}" + (" · PEP" if customer.get("pep") else ""))
-        run = st.button("▶ Run investigation", type="primary", width="stretch")
-        with st.expander("Customer transactions (last 90 days)"):
-            end =datetime.combine(date.fromisoformat(alert["alert_date"]), datetime.max.time())
+        st.markdown(case_html(alert, customer), unsafe_allow_html=True)
+        run = st.button("Run investigation", type="primary", width="stretch") or ss.pop("autorun", False)
+        st.markdown("<div class='sect'>Alert queue</div>", unsafe_allow_html=True)
+        st.markdown(queue_html(alerts, alert_id), unsafe_allow_html=True)
+        with st.expander("Customer transactions, last 90 days"):
+            end = datetime.combine(date.fromisoformat(alert["alert_date"]), datetime.max.time())
             rows = store.transactions(customer["customer_id"], end - timedelta(days=90), end)
             df = pd.DataFrame([public_txn(t) for t in rows])
             if not df.empty:
                 df["trigger"] = df["txn_id"].isin(alert["trigger_txn_ids"])
                 st.dataframe(df[["txn_id", "timestamp", "direction", "amount", "channel", "counterparty",
                                  "counterparty_country", "reference", "trigger"]].iloc[::-1],
-                             hide_index=True, width="stretch", height=280)
+                             hide_index=True, width="stretch", height=300,
+                             column_config={"amount": st.column_config.NumberColumn("amount", format="£%.2f")})
 
     with right:
         if run:
@@ -310,104 +520,130 @@ with tab_inv:
             if err:
                 st.error(err)
             else:
-                with st.status(f"Investigating {alert_id}…", expanded=True) as status:
-                    result = agent.run(alert_id, on_event=lambda e: status.write(format_event(e)))
-                    status.update(label=f"Investigation complete · {result.metrics['tool_calls']} tool calls · "
-                                        f"{result.metrics['latency_ms'] / 1000:.1f}s",
-                                  state="complete", expanded=False)
+                with st.status(f"Investigating {alert_id}", expanded=True) as status:
+                    result = agent.run(alert_id, on_event=lambda e: status.markdown(trace_row(e), unsafe_allow_html=True))
+                    status.update(label=f"Investigation complete: {result.metrics['tool_calls']} tool calls in "
+                                        f"{result.metrics['latency_ms'] / 1000:.1f} s", state="complete", expanded=False)
                 ss.results[alert_id] = result
         result = ss.results.get(alert_id)
         if result is None:
             with st.container(border=True):
-                st.markdown("#### Suggested walkthrough")
-                st.markdown("Choose a case on the left and press **Run investigation**. Each run takes a few seconds.")
-                st.markdown("\n".join(f"- **{aid}** · {desc} → expect **{exp}**" for aid, desc, exp in DEMO_CASES))
-                st.caption("The agent opens the case file, decides which evidence and policy it needs, and recommends "
-                           "CLOSE, RFI or ESCALATE with cited evidence. Controls check the recommendation, and you "
-                           "approve or override it as the analyst.")
+                st.markdown("<div class='start'><h3>Start with one of these cases</h3><p>Each investigation takes a "
+                            "few seconds. The agent opens the case file, decides what else it needs, and recommends a "
+                            "decision with cited evidence for you to approve or override.</p></div>",
+                            unsafe_allow_html=True)
+                for aid, desc, expect in DEMO_CASES:
+                    c1, c2 = st.columns([0.68, 0.32], vertical_alignment="center")
+                    c1.markdown(f"<div class='startcase'><span class='t'><span class='ref'>{aid}</span> {esc(desc)}</span>"
+                                f"<span class='e'>Expected: {esc(expect)}</span></div>", unsafe_allow_html=True)
+                    c2.button(f"Investigate {aid}", key=f"go_{aid}", on_click=investigate, args=(aid,), width="stretch")
         else:
             render_result(result)
 
 
 # ----------------------------------------------------------------------------- evaluation tab
+def pct(x) -> str:
+    return "n/a" if x is None else f"{x:.0%}"
+
+
 def render_eval(name: str, s: dict) -> None:
-    st.markdown(f"##### {name}")
-    e1, e2, e3, e4, e5 = st.columns(5)
-    e1.metric("Accuracy", f"{s['accuracy']:.0%}")
-    e2.metric("Escalation recall", f"{s['escalation_recall']:.0%}" if s["escalation_recall"] is not None else "n/a")
-    e3.metric("Missed escalations", s["missed_escalations"])
-    e4.metric("Grounding rate", f"{s['grounding_rate']:.0%}")
-    e5.metric("Avg latency", f"{s['avg_latency_ms'] / 1000:.1f}s")
-    cm = pd.DataFrame(s["confusion"]).T[list(C.DISPOSITIONS)]
-    cm.index.name = "label ↓ / recommended →"
-    a, b = st.columns([0.35, 0.65])
-    a.dataframe(cm, width="stretch")
-    b.dataframe(pd.DataFrame(s["rows"])[["alert_id", "label", "predicted", "rules_engine", "risk_score",
-                                         "controls", "correct"]], hide_index=True, width="stretch")
-    st.caption(f"Controls changed {s['control_overrides']} recommendation(s) · LLM/rules disagreements "
-               f"{s['dual_control_disagreements']} · fallbacks {s['fallbacks']} · avg {s['avg_tool_calls']} tool calls"
-               + (f", {s['avg_llm_calls']} LLM calls, {s['avg_tokens']:,} tokens per case" if s["avg_llm_calls"] else ""))
-    st.download_button("⬇️ Report (.md)", to_markdown(s), file_name=f"eval_{name.replace(' ', '_')}.md",
-                       key=f"dl_{name}")
-    with st.expander("Raw results (JSON)"):
+    errors = [r for r in s["rows"] if not r["correct"]]
+    caught = [r for r in errors if r.get("senior_review") or "CTRL-DUAL" in r["controls"]]
+    correct = sum(r["correct"] for r in s["rows"])
+    tiles = [
+        ("Accuracy", f"{correct} of {s['cases']}", f"{pct(s['accuracy'])} of labelled alerts"),
+        ("Escalation recall", pct(s["escalation_recall"]), "Suspicious cases escalated"),
+        ("Missed escalations", str(s["missed_escalations"]), "Should escalate, recommended close"),
+        ("Grounding", pct(s["grounding_rate"]), "Cited IDs returned by a tool"),
+        ("Errors sent for review", f"{len(caught)} of {len(errors)}" if errors else "No errors",
+         "Flagged by the controls"),
+    ]
+    tiles_html = "".join(f"<div class='tile'><div class='k'>{k}</div><div class='v'>{v}</div><div class='d'>{dsc}</div></div>"
+                         for k, v, dsc in tiles)
+    cm = s["confusion"]
+    head = "".join(f"<th>{DISPLAY[c]}</th>" for c in C.DISPOSITIONS)
+    body = "".join(
+        f"<tr><th class='row'>{DISPLAY[t]}</th>" + "".join(
+            f"<td class='{'diag' if t == p else ('miss' if t == 'ESCALATE' and p == 'CLOSE' and cm[t][p] else '')}'>"
+            f"{cm[t][p]}</td>" for p in C.DISPOSITIONS) + "</tr>" for t in C.DISPOSITIONS)
+    meta = (f"{s['cases']} alerts, prompt {s['prompt_version']}, avg {s['avg_tool_calls']} tool calls"
+            + (f" and {s['avg_tokens']:,} tokens per case" if s.get("avg_llm_calls") else ""))
+    st.markdown(f"<div class='runhead'><span class='n'>{esc(name)}</span><span class='m'>{esc(meta)}</span></div>"
+                f"<div class='tiles'>{tiles_html}</div>", unsafe_allow_html=True)
+    a, b = st.columns([0.34, 0.66], gap="medium")
+    a.markdown(f"<table class='cm'><tr><th class='row'>Label / agent</th>{head}</tr>{body}</table>",
+               unsafe_allow_html=True)
+    table = pd.DataFrame(s["rows"])[["alert_id", "customer", "label", "predicted", "rules_engine", "controls", "correct"]]
+    b.dataframe(table.rename(columns={"alert_id": "Alert", "customer": "Customer", "label": "Label",
+                                      "predicted": "Recommended", "rules_engine": "Rules engine",
+                                      "controls": "Controls", "correct": "Correct"}),
+                hide_index=True, width="stretch", height=260)
+    c1, c2 = st.columns([0.3, 0.7])
+    c1.download_button("Download report", to_markdown(s), file_name=f"eval_{name.split(' ')[0].lower()}.md",
+                       key=f"dl_{name}", width="stretch")
+    with c2.expander("Raw results (JSON)"):
         st.code(json.dumps(s, indent=1, default=str), language="json")
 
 
 def saved_run_label(stem: str, s: dict) -> str:
     if s.get("mode") == "llm":
-        return f"LLM agent · {s.get('model')} · saved run ({s.get('run_at', '')[:10]})"
-    return "Offline rules engine · saved run"
+        return f"LLM agent, {s.get('model')}, saved run of {s.get('run_at', '')[:10]}"
+    return "Offline rules engine, saved run"
 
 
 with tab_eval:
-    st.subheader("Evaluation against analyst-labelled alerts")
-    st.write("Each of the 13 alerts has a disposition set by a senior analyst. The evaluation runs the agent on "
-             "all of them and measures accuracy, **escalation recall** (the costliest AML error is closing "
-             "something that should have been escalated), **grounding** (every cited ID must come from a tool) "
-             "and how often the controls had to step in.")
-    st.caption("The rules engine was calibrated on this synthetic dataset, so its score is a sanity check; the LLM "
-               "agent's score is the informative one. In the saved LLM run, both errors disagreed with the rules "
-               "engine and were routed to a senior analyst by CTRL-DUAL. Batch latency includes waits for Groq's "
-               "free-tier rate limit; a single case takes 1-3 seconds.")
+    st.markdown("<div class='sect' style='font-size:1.25rem;margin-top:8px'>Evaluation against analyst-labelled "
+                "alerts</div>", unsafe_allow_html=True)
+    st.write("Each of the 13 alerts carries a disposition set by a senior analyst. The headline measures are "
+             "**escalation recall** (closing a case that should have been escalated is the costliest error in AML) "
+             "and **grounding** (every cited identifier must come from a tool).")
+    st.caption("The rules engine was calibrated on this synthetic set, so its score is a sanity check; the LLM agent's "
+               "score is the informative one. Batch latency includes waits for Groq's free-tier rate limit; a "
+               "single case takes 1 to 3 seconds.")
     # Saved runs: inserted rules-first so the LLM run is shown first (newest entries render at the top).
     for path in sorted(RESULTS_DIR.glob("*.json"), key=lambda p: p.stem.startswith("llm")) if RESULTS_DIR.exists() else []:
         saved = json.loads(path.read_text())
         ss.evals.setdefault(saved_run_label(path.stem, saved), saved)
-    b1, b2 = st.columns(2)
-    if b1.button("Run evaluation · rules engine", width="stretch"):
-        with st.spinner("Running 13 investigations…"):
-            ss.evals["rules engine (this session)"] = evaluate(TriageAgent(store, mode="rules"), store)
-    if b2.button("Run evaluation · LLM agent", width="stretch", disabled=not (use_llm and api_key),
-                 help="Runs all 13 alerts through the LLM agent. On Groq's free tier this takes a few minutes and uses "
-                      "about a third of the daily token allowance, so avoid running it just before a live demo."):
-        agent, err = build_agent()
-        if err:
-            st.error(err)
-        else:
-            bar = st.progress(0.0, text="Starting…")
-            ss.evals[f"LLM {model} (this session)"] = evaluate(
-                agent, store, progress=lambda i, n, row: bar.progress(i / n, text=f"{row['alert_id']}: "
-                                                                                 f"{row['predicted']} ({i}/{n})"))
-            bar.empty()
     for name, s in reversed(list(ss.evals.items())):
         with st.container(border=True):
             render_eval(name, s)
+    with st.expander("Run the evaluation again"):
+        st.caption("Runs all 13 alerts. The LLM run takes a few minutes on Groq's free tier and uses about a third of "
+                   "the daily token allowance, so avoid it just before a live demo.")
+        b1, b2 = st.columns(2)
+        if b1.button("Run with the rules engine", width="stretch"):
+            with st.spinner("Running 13 investigations"):
+                ss.evals["Rules engine, this session"] = evaluate(TriageAgent(store, mode="rules"), store)
+                st.rerun()
+        if b2.button("Run with the LLM agent", width="stretch", disabled=not (use_llm and api_key)):
+            agent, err = build_agent()
+            if err:
+                st.error(err)
+            else:
+                bar = st.progress(0.0, text="Starting")
+                ss.evals[f"LLM agent, {model}, this session"] = evaluate(
+                    agent, store, progress=lambda i, n, row: bar.progress(i / n, text=f"{row['alert_id']}: "
+                                                                                     f"{DISPLAY[row['predicted']]} ({i} of {n})"))
+                bar.empty()
+                st.rerun()
 
 
 # ----------------------------------------------------------------------------- how it works tab
 with tab_how:
-    st.subheader("Architecture")
+    st.markdown("<div class='sect' style='font-size:1.25rem;margin-top:8px'>How an investigation runs</div>",
+                unsafe_allow_html=True)
     st.graphviz_chart("""
 digraph {
-  rankdir=LR; bgcolor="transparent";
-  node [shape=box, style="rounded,filled", fillcolor="#f2f4f7", color="#98a2b3", fontname="Helvetica", fontsize=11];
-  edge [color="#667085", fontname="Helvetica", fontsize=9];
-  alert [label="Monitoring / screening\\nalert"];
-  agent [label="LLM investigator\\n(Groq tool-calling loop)", fillcolor="#e0eaff"];
-  tools [label="Tools\\nopen_case: alert · KYC profile ·\\ntypology detectors · sanctions screening\\nget_transactions · search_policy (BM25 RAG)"];
-  rules [label="Independent rules engine\\n(second line)"];
-  controls [label="Controls\\ngrounding · sanctions hard stop\\ndual control · evidence checks", fillcolor="#fef0c7"];
-  analyst [label="Human analyst\\napprove / override", fillcolor="#d1fadf"];
+  rankdir=LR; bgcolor="transparent"; nodesep=0.35; ranksep=0.45;
+  node [shape=box, style="rounded,filled", fillcolor="#FFFFFF", color="#C9D1DC", fontname="Helvetica", fontsize=11,
+        fontcolor="#16233A", margin="0.18,0.1"];
+  edge [color="#8A96A8", fontname="Helvetica", fontsize=9, fontcolor="#5B6676"];
+  alert [label="Monitoring or\\nscreening alert"];
+  agent [label="LLM investigator\\nGroq tool-calling loop", fillcolor="#12284B", fontcolor="#FFFFFF", color="#12284B"];
+  tools [label="Tools\\nopen_case: alert, KYC, detectors, sanctions\\nget_transactions\\nsearch_policy (BM25 RAG)"];
+  rules [label="Independent rules engine\\nsecond line"];
+  controls [label="Controls\\ngrounding, sanctions hard stop,\\ndual control, evidence, tipping off", fillcolor="#FDF3E1", color="#E8C88F"];
+  analyst [label="Analyst\\napprove or override", fillcolor="#E5F3EB", color="#A9D3BC"];
   audit [label="Audit trail", shape=cylinder];
   alert -> agent; agent -> tools [dir=both, label="function calls"]; alert -> rules;
   agent -> controls [label="proposed decision"]; rules -> controls [label="score"];
@@ -415,8 +651,6 @@ digraph {
 }
 """, width="stretch")
     st.markdown("""
-**How an investigation runs**
-
 1. The LLM receives the alert ID and a versioned system prompt describing the procedure, dispositions and rules.
 2. It calls `open_case`, which returns the alert, KYC profile, typology detector findings and sanctions screening.
 3. It decides what else it needs: `get_transactions` to inspect specific activity, `search_policy` to find the
@@ -427,23 +661,24 @@ digraph {
 
 **Why one `open_case` call instead of many small tools?** The model calls one tool per turn and each turn re-sends
 the conversation. Bundling the case file cut a typical investigation from about 24,000 tokens and 140 seconds to
-about 6,000 tokens and 2–3 seconds on Groq's free tier, with the same decisions.
+about 6,000 tokens and 2 to 3 seconds on Groq's free tier, with the same decisions.
 
-**Controls**
+#### Controls
 
 | Control | What it does |
 |---|---|
 | `CTRL-SCHEMA` | Invalid or unparseable model output is repaired once, then falls back to the rules investigator |
 | `CTRL-GROUNDING` | Every cited ID (TX, SAN, DOC, POL) must have been returned by a tool in this case; invented ones are removed and flagged |
-| `CTRL-SANCTIONS` | A potential true sanctions match can never be closed or sent for RFI by the agent |
-| `CTRL-DUAL` | If the LLM and the rules engine disagree, the case goes to a senior analyst |
+| `CTRL-SANCTIONS` | A potential true sanctions match can never be closed or sent for more information by the agent |
+| `CTRL-DUAL` | If the agent and the rules engine disagree, the case goes to a senior analyst |
 | `CTRL-EVIDENCE` | Escalations need cited evidence; closures need mitigating evidence when the risk score is elevated |
-| `CTRL-TIPOFF` | An escalation that suggests contacting the customer is flagged for MLRO approval (tipping-off risk) |
+| `CTRL-TIPOFF` | An escalation that suggests contacting the customer is flagged for MLRO approval (POCA s.333A) |
 | `CTRL-HITL` | Nothing is actioned automatically; overrides need a reason |
 | Scope | Tools only return data for the customer on the alert (data minimisation) |
-| `CTRL-FALLBACK` | If Groq is unavailable or rate-limited, the rules investigator completes the case and says so |
+| `CTRL-FALLBACK` | If Groq is unavailable or rate limited, the rules investigator completes the case and says so |
 
-**What this is not:** a production system. Data is synthetic, the policy is illustrative, and BM25 stands in for
-a production retrieval stack. The design choices (tool scoping, grounding, dual control, human approval, audit)
-are the ones a bank's model risk and compliance teams would expect to see.
+**What this is not:** a production system. Data is synthetic, the policy is illustrative, and BM25 stands in for a
+production retrieval stack. The design choices (tool scoping, grounding, dual control, human approval, audit) are
+the ones a bank's model risk and compliance teams expect. See the
+[governance note](""" + REPO_URL + """/blob/main/docs/GOVERNANCE.md) for the UK regulatory mapping.
 """)
