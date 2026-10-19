@@ -1,7 +1,7 @@
 """Guardrails applied to every recommendation before a human sees it.
 
 CTRL-SCHEMA     the model's answer must be a valid decision object (else fall back)
-CTRL-GROUNDING  every cited identifier must have been returned by a tool in this case
+CTRL-GROUNDING  every cited identifier must come from a tool result or the agent's instructions in this case
 CTRL-SANCTIONS  a potential true sanctions match can never be closed or sent for RFI
 CTRL-DUAL       if the LLM and the independent rules engine disagree, a senior analyst reviews
 CTRL-EVIDENCE   escalations need evidence; closures need mitigation when the rules score is elevated

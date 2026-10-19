@@ -39,7 +39,7 @@ decisions falls within scope as a model, and the design maps to each principle a
 |---|---|
 | 1. Model identification and risk classification | Every run records the model ID, prompt version (`triage-v1.5`) and data version hash, so each decision traces to a specific configuration. The agent supports L1 decisions in a regulated process, so it is high materiality. |
 | 2. Governance | Human approval of every case; overrides need a reason and are logged; senior review is triggered by control flags. |
-| 3. Development, implementation and use | Deterministic detectors and screening are unit tested (74 tests in CI); the LLM is limited to judgement and drafting; a versioned prompt; graceful fallback when the provider is unavailable. |
+| 3. Development, implementation and use | Deterministic detectors and screening are unit tested (75 tests in CI); the LLM is limited to judgement and drafting; a versioned prompt; graceful fallback when the provider is unavailable. |
 | 4. Independent validation | An evaluation harness scores the agent against analyst-labelled alerts (accuracy, escalation recall, missed escalations, grounding). An independent rules engine scores every case without seeing the model's answer (`CTRL-DUAL`). |
 | 5. Model risk mitigants | Controls run before any human sees a recommendation: grounding, sanctions hard stop, evidence checks, tipping-off flag and case scoping. Fallback to the rules investigator is visible in the trace. |
 

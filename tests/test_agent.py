@@ -183,3 +183,15 @@ def test_tipoff_control_flags_customer_contact_on_escalation(store):
     flag = next(f for f in r.controls if f["control"] == "CTRL-TIPOFF")
     assert "MLRO approval" in flag["message"] and flag["severity"] == "WARN"
     assert r.decision["recommended_actions"] == final["recommended_actions"]  # flagged, not removed
+
+
+def test_policy_ids_from_the_instructions_count_as_grounded(store):
+    # The prompt tells the model to apply POL-SAN-02; citing it without a policy search is legitimate.
+    final = {"disposition": "ESCALATE", "risk_score": 90, "confidence": "HIGH",
+             "key_findings": [{"finding": "Strong match", "evidence": ["SAN-0041", "TX-103-0055"]}],
+             "mitigating_factors": [], "policy_refs": ["POL-SAN-02"], "narrative": "Hold TX-103-0055.",
+             "recommended_actions": ["Hold the payment and refer to the sanctions team"]}
+    r = TriageAgent(store, llm=ScriptedLLM([[("open_case", {"alert_id": "ALT-1003"})], final]), mode="llm").run("ALT-1003")
+    assert r.grounding["rate"] == 1.0
+    assert "POL-SAN-02" in r.decision["policy_refs"]
+    assert not any(c["control"] == "CTRL-GROUNDING" for c in r.controls)

@@ -388,7 +388,7 @@ footer a { color: var(--accent); }
       <section class="panel prose">
         <h3>Two ways to run it</h3>
         <p><strong>This page</strong> runs the offline investigator for everyone. Opened in Claude, it can also run the live agent: Claude calls this page's own functions as tools, so you can watch each call in the trace.</p>
-        <p><strong>The Python project</strong> runs the same design on Groq (GPT-OSS 120B by default) behind a Streamlit app, with 74 unit tests, a scripted mock LLM for testing the loop and controls, and an evaluation harness.</p>
+        <p><strong>The Python project</strong> runs the same design on Groq (GPT-OSS 120B by default) behind a Streamlit app, with 75 unit tests, a scripted mock LLM for testing the loop and controls, and an evaluation harness.</p>
       </section>
     </div>
   </section>
@@ -864,6 +864,7 @@ async function runClaude(aid) {
     r.thinking = "Claude is reviewing the results…";
     log("TOOL", name, toolSummary(name, out));
   });
+  findAll(DATA.prompt).forEach((id) => tk.seen.add(id));  // IDs the instructions give the model are grounded context
   const tools = DATA.tool_schemas.map((s) => ({ name: s.function.name, description: s.function.description, inputSchema: s.function.parameters,
     execute: (input) => tk.execute(s.function.name, input) }));
   const prompt = DATA.prompt + "\n\n" + DATA.request_template.replace("{ALERT_ID}", aid) + "\n\n" + CLAUDE_HINT;

@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-10-19T08:18:43+00:00",
+  "run_at": "2026-10-19T10:15:02+00:00",
   "mode": "rules",
   "model": "rules-engine",
   "prompt_version": "triage-v1.5",
@@ -53,7 +53,7 @@
   "avg_tool_calls": 7.0,
   "avg_llm_calls": 0.0,
   "avg_tokens": 0,
-  "avg_latency_ms": 20,
+  "avg_latency_ms": 17,
   "rows": [
     {
       "alert_id": "ALT-1001",
@@ -92,7 +92,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 12,
+      "latency_ms": 11,
       "fallback_reason": null
     },
     {
@@ -114,7 +114,7 @@
       "tool_calls": 8,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 16,
+      "latency_ms": 18,
       "fallback_reason": null
     },
     {
@@ -214,7 +214,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 20,
+      "latency_ms": 12,
       "fallback_reason": null
     },
     {
@@ -234,7 +234,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 24,
+      "latency_ms": 19,
       "fallback_reason": null
     },
     {
@@ -254,7 +254,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 6,
+      "latency_ms": 5,
       "fallback_reason": null
     },
     {
@@ -274,7 +274,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 8,
+      "latency_ms": 7,
       "fallback_reason": null
     },
     {
@@ -294,7 +294,7 @@
       "tool_calls": 7,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 21,
+      "latency_ms": 17,
       "fallback_reason": null
     },
     {
@@ -314,7 +314,7 @@
       "tool_calls": 6,
       "llm_calls": 0,
       "tokens": 0,
-      "latency_ms": 81,
+      "latency_ms": 65,
       "fallback_reason": null
     }
   ]

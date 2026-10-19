@@ -87,7 +87,7 @@ tools (`get_alert`, `get_customer_profile`, `detect_typologies`, `screen_sanctio
 | Control | Purpose |
 |---|---|
 | `CTRL-SCHEMA` | Unparseable output is repaired once, then the case falls back to the rules investigator |
-| `CTRL-GROUNDING` | Every cited ID (`TX-`, `SAN-`, `DOC-`, `POL-`) must have been returned by a tool in this case; invented IDs are removed and flagged |
+| `CTRL-GROUNDING` | Every cited ID (`TX-`, `SAN-`, `DOC-`, `POL-`) must come from a tool result or the agent's instructions in this case; anything else is removed and flagged |
 | `CTRL-SANCTIONS` | A potential true sanctions match can never be closed or sent for RFI by the agent |
 | `CTRL-DUAL` | Disagreement with the independent rules engine routes the case to a senior analyst |
 | `CTRL-EVIDENCE` | Escalations need cited evidence; closures need cited mitigation when the risk score is elevated |
@@ -107,7 +107,8 @@ Evaluated on 13 analyst-labelled alerts. Full reports are in [`eval/results/`](e
 | Offline rules engine | 13/13 | 6/6 | 0 | 100% | n/a |
 
 ¹ Labelled ESCALATE but recommended CLOSE, the costliest error in AML.
-² Share of cited IDs that a tool actually returned; one invented citation was removed by `CTRL-GROUNDING`.
+² Share of cited IDs that were grounded. The one removal in this run was `POL-SAN-02`, a policy the agent's own
+instructions cite; the control was over-strict and now accepts IDs supplied in the instructions.
 ³ Both LLM errors disagreed with the independent rules engine, so `CTRL-DUAL` sent them to a senior analyst:
 ALT-1009 (round-tripping, recommended RFI instead of ESCALATE) and ALT-1007 (café turnover, recommended CLOSE
 instead of RFI). No error would have been actioned without review.
@@ -162,7 +163,7 @@ The dataset is generated deterministically by `scripts/generate_data.py`.
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-pytest                                               # 74 tests, no API key needed
+pytest                                               # 75 tests, no API key needed
 python -m eval.run_eval                              # offline evaluation
 streamlit run app.py
 ```
@@ -194,7 +195,7 @@ aml_agent/
 app.py            Streamlit UI
 data/             synthetic customers, transactions, alerts, sanctions list, labels, policy
 eval/             evaluation harness and saved results
-tests/            74 unit tests, including a scripted mock LLM for the agent loop and controls
+tests/            75 unit tests, including a scripted mock LLM for the agent loop and controls
 docs/             walkthrough, design FAQ, governance and regulatory mapping
 demo/             self-contained web version of the demo (built by scripts/build_demo.py)
 scripts/          dataset generator and web demo builder

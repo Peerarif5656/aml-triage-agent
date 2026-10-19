@@ -677,7 +677,7 @@ about 6,000 tokens and 2 to 3 seconds on Groq's free tier, with the same decisio
 | Control | What it does |
 |---|---|
 | `CTRL-SCHEMA` | Invalid or unparseable model output is repaired once, then falls back to the rules investigator |
-| `CTRL-GROUNDING` | Every cited ID (TX, SAN, DOC, POL) must have been returned by a tool in this case; invented ones are removed and flagged |
+| `CTRL-GROUNDING` | Every cited ID (TX, SAN, DOC, POL) must come from a tool result or the agent's instructions in this case; anything else is removed and flagged |
 | `CTRL-SANCTIONS` | A potential true sanctions match can never be closed or sent for more information by the agent |
 | `CTRL-DUAL` | If the agent and the rules engine disagree, the case goes to a senior analyst |
 | `CTRL-EVIDENCE` | Escalations need cited evidence; closures need mitigating evidence when the risk score is elevated |

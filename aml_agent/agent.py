@@ -26,7 +26,7 @@ from .prompts import FINALISE_REQUEST, REPAIR_REQUEST, SYSTEM_PROMPT, SYSTEM_PRO
 from .retrieval import PolicyIndex
 from .rules import score_case
 from .screening import screen_case
-from .tools import COMPACT_TOOL_SCHEMAS, TOOL_SCHEMAS, ToolKit
+from .tools import COMPACT_TOOL_SCHEMAS, ID_PATTERN, TOOL_SCHEMAS, ToolKit
 from .typologies import CaseContext, run_detectors
 
 
@@ -156,6 +156,9 @@ class TriageAgent:
     def _investigate_with_llm(self, alert_id: str, toolkit: ToolKit, audit: AuditTrail, usage: dict) -> dict | None:
         messages = [{"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": investigation_request(alert_id)}]
+        # Identifiers the instructions give the model (e.g. POL-SAN-02 in the sanctions rule) are grounded context,
+        # just like tool results, so citing them must not trip CTRL-GROUNDING.
+        toolkit.seen_ids.update(ID_PATTERN.findall(self.system_prompt + messages[1]["content"]))
         repaired, finalising = False, False
         for step in range(1, self.max_steps + 1):
             t0 = time.perf_counter()
