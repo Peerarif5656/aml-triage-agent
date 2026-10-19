@@ -30,6 +30,7 @@ class FakeCompletions:
 def make_client(model, fallbacks, behaviour, max_retries=2):
     c = GroqClient.__new__(GroqClient)  # skip __init__: no SDK or network needed
     c.model, c.max_retries, c.fallback_models, c.model_switches = model, max_retries, list(fallbacks), []
+    c.on_retry = None
     c._client = NS(chat=NS(completions=FakeCompletions(behaviour)))
     return c
 
@@ -74,3 +75,27 @@ def test_usable_models_keeps_preference_order():
         ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]
     assert usable_models(None, ["a", "b"]) == ["a", "b"]
     assert usable_models(["x"], ["a", "b"]) == ["a", "b"]
+
+
+def test_gpt_oss_uses_low_reasoning_effort_and_token_cap():
+    opts = GroqClient._model_options("openai/gpt-oss-120b")["extra_body"]
+    assert opts["reasoning_effort"] == "low" and opts["include_reasoning"] is False
+    assert opts["max_completion_tokens"] > 1000
+    assert "reasoning_effort" not in GroqClient._model_options("qwen/qwen3.8-27b")["extra_body"]
+
+
+def test_rate_limit_wait_is_reported_to_callback():
+    c = make_client("m", [], {"m": [APIError(429, "rate limit", retry_after="0"), "ok"]})
+    waits = []
+    c.on_retry = lambda wait, reason: waits.append((wait, reason))
+    c.chat([{"role": "user", "content": "hi"}])
+    assert waits == [(0.0, "free-tier rate limit")]
+
+
+def test_rate_limit_wait_appears_in_agent_trace(store):
+    from aml_agent.agent import TriageAgent
+    c = make_client("m", [], {"m": [APIError(429, "rate limit", retry_after="0"), "ok"]})
+    r = TriageAgent(store, llm=c, mode="llm").run("ALT-1011")
+    actions = [e["action"] for e in r.audit.events if e["actor"] == "SYSTEM"]
+    assert any(a.startswith("Waiting 0s for the LLM provider (free-tier rate limit)") for a in actions)
+    assert c.on_retry is None  # callback is detached after the run

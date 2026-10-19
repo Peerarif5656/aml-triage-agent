@@ -26,6 +26,7 @@ AVAILABLE_MODELS = [
 ]
 MAX_AGENT_STEPS = 14          # maximum LLM turns per investigation (gpt-oss calls one tool per turn)
 LLM_TEMPERATURE = 0.0
+MAX_COMPLETION_TOKENS = 3000  # caps each reply (reasoning + answer); the final JSON needs ~1,000
 
 # ----------------------------------------------------------------- dispositions
 DISPOSITIONS = ("CLOSE", "RFI", "ESCALATE")
@@ -82,4 +83,4 @@ TYPOLOGY_WEIGHTS = {
 VELOCITY_HIGH_POINTS = 35
 SANCTIONS_WEAK_POINTS = 5
 
-PROMPT_VERSION = "triage-v1.3"
+PROMPT_VERSION = "triage-v1.4"

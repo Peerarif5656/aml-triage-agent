@@ -14,7 +14,8 @@ class ScriptedLLM:
         self.calls = []
 
     def chat(self, messages, tools=None, tool_choice="auto"):
-        self.calls.append({"messages": [dict(m) for m in messages], "tool_choice": tool_choice})
+        self.calls.append({"messages": [dict(m) for m in messages], "tool_choice": tool_choice,
+                           "tools": [t["function"]["name"] for t in (tools or [])]})
         if not self.script:
             raise LLMError("script exhausted")
         step = self.script.pop(0)

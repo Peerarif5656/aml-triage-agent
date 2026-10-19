@@ -10,7 +10,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from .config import AVAILABLE_MODELS, DEFAULT_MODEL, GROQ_BASE_URL, LLM_TEMPERATURE
+from .config import AVAILABLE_MODELS, DEFAULT_MODEL, GROQ_BASE_URL, LLM_TEMPERATURE, MAX_COMPLETION_TOKENS
 
 
 class LLMError(RuntimeError):
@@ -56,7 +56,17 @@ class GroqClient:
         self.fallback_models = [m for m in (fallback_models if fallback_models is not None else AVAILABLE_MODELS)
                                 if m != model]
         self.model_switches: list[dict] = []
+        self.on_retry = None  # optional callback(wait_seconds, reason) so callers can show waits
         self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0)
+
+    @staticmethod
+    def _model_options(model: str) -> dict:
+        # gpt-oss reasons before answering; low effort is plenty for a tool-driven investigation and uses
+        # far fewer tokens per turn (which is what the free tier's per-minute limit counts).
+        body = {"max_completion_tokens": MAX_COMPLETION_TOKENS}
+        if model.startswith("openai/gpt-oss"):
+            body.update({"reasoning_effort": "low", "include_reasoning": False})
+        return {"extra_body": body}
 
     def chat(self, messages: list[dict], tools: list[dict] | None = None, tool_choice: str = "auto") -> LLMResponse:
         kwargs = {"messages": messages, "temperature": LLM_TEMPERATURE}
@@ -66,6 +76,7 @@ class GroqClient:
         attempt = 0
         while True:
             kwargs["model"] = self.model
+            kwargs.update(self._model_options(self.model))
             try:
                 resp = self._client.chat.completions.create(**kwargs)
                 break
@@ -81,7 +92,15 @@ class GroqClient:
                              or (status == 400 and "tool_use_failed" in text))
                 if not retryable or attempt >= self.max_retries:
                     raise LLMError(f"{type(e).__name__}: {text[:300]}") from e
-                time.sleep(self._retry_after(e, attempt))
+                wait = self._retry_after(e, attempt)
+                if self.on_retry:
+                    reason = ("free-tier rate limit" if status == 429 or type(e).__name__ == "RateLimitError"
+                              else "temporary provider error")
+                    try:
+                        self.on_retry(wait, reason)
+                    except Exception:
+                        pass
+                time.sleep(wait)
                 attempt += 1
 
         msg = resp.choices[0].message

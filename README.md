@@ -62,6 +62,7 @@ validated, then passed through the controls with the rules engine's independent 
 
 | Tool | Returns |
 |---|---|
+| `open_case` | The case file in one call: alert, KYC profile, detector findings and sanctions screening |
 | `get_alert` | Rule triggered, date, summary, triggering transaction IDs |
 | `get_customer_profile` | KYC data, expected activity, PEP status, EDD date, known counterparties, expected events, documents |
 | `get_transactions` | Filtered transactions up to the alert date, with a summary |
@@ -70,6 +71,12 @@ validated, then passed through the controls with the rules engine's independent 
 | `search_policy` | The most relevant policy sections with their `POL-...` IDs |
 
 All tools are **scoped to the customer on the alert**: the model cannot browse other customers' data.
+
+The Groq agent uses a **compact tool set** (`open_case`, `get_transactions`, `search_policy`). Models such as
+gpt-oss call one tool per turn and every turn re-sends the conversation, so bundling the case file into one call
+cuts tokens per investigation from about 24k to 7-11k and keeps it inside the free tier's per-minute limit. The six
+granular tools remain available (`TriageAgent(..., toolset="granular")`) for models that call tools in parallel, and
+are what the web demo's Claude agent uses.
 
 ### Controls
 
@@ -123,7 +130,7 @@ from the command line or the app's Evaluation tab.
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-pytest                                               # 68 tests, no API key needed
+pytest                                               # 73 tests, no API key needed
 streamlit run app.py
 ```
 
@@ -165,7 +172,7 @@ aml_agent/
   report.py       Markdown case report
 data/             synthetic customers, transactions, alerts, sanctions list, labels, policy
 eval/run_eval.py  evaluation harness
-tests/            68 unit tests incl. a scripted mock LLM for the agent loop and controls
+tests/            73 unit tests incl. a scripted mock LLM for the agent loop and controls
 app.py            Streamlit UI
 demo/             self-contained web demo (template + built page)
 scripts/          dataset generator and web demo builder

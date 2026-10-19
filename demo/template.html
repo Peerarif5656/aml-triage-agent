@@ -387,7 +387,7 @@ footer a { color: var(--accent); }
       <section class="panel prose">
         <h3>Two ways to run it</h3>
         <p><strong>This page</strong> runs the offline investigator for everyone. Opened in Claude, it can also run the live agent: Claude calls this page's own functions as tools, so you can watch each call in the trace.</p>
-        <p><strong>The Python project</strong> runs the same design on Groq (GPT-OSS 120B by default) behind a Streamlit app, with 68 unit tests, a scripted mock LLM for testing the loop and controls, and an evaluation harness.</p>
+        <p><strong>The Python project</strong> runs the same design on Groq (GPT-OSS 120B by default) behind a Streamlit app, with 73 unit tests, a scripted mock LLM for testing the loop and controls, and an evaluation harness.</p>
       </section>
     </div>
   </section>
@@ -473,7 +473,7 @@ const TXN_KEYS = ["txn_id", "timestamp", "direction", "amount", "channel", "coun
 function txnRows(cid) { return (DATA.txns[cid] || []).map((r) => Object.fromEntries(TXN_KEYS.map((k, i) => [k, r[i]]))); }
 function getTransactions(alert, cid, { days = 30, direction = null, min_amount = 0, limit = 15 } = {}) {
   days = Math.max(1, Math.min(parseInt(days, 10) || 30, 365));
-  limit = Math.max(1, Math.min(parseInt(limit, 10) || 15, 50));
+  limit = Math.max(1, Math.min(parseInt(limit, 10) || 15, 25));
   const end = asOf(alert), start = new Date(end.getTime() - days * 86400000);
   const lo = isoMin(start), hi = isoMin(end);
   let rows = txnRows(cid).filter((t) => t.timestamp >= lo && t.timestamp <= hi);

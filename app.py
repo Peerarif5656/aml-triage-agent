@@ -348,8 +348,8 @@ with tab_eval:
         with st.spinner("Running 13 investigations…"):
             ss.evals["rules engine (this session)"] = evaluate(TriageAgent(store, mode="rules"), store)
     if b2.button("Run evaluation · LLM agent", width="stretch", disabled=not (use_llm and api_key),
-                 help="Select the LLM engine and add a key in the sidebar. Takes roughly 10-15 minutes on Groq's free tier "
-                      "because of its tokens-per-minute limit."):
+                 help="Runs all 13 alerts through the LLM agent. On Groq's free tier this takes about 5-10 minutes and uses "
+                      "roughly half of the daily token allowance, so avoid running it just before a live demo."):
         agent, err = build_agent()
         if err:
             st.error(err)

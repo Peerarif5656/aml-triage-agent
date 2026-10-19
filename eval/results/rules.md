@@ -1,6 +1,6 @@
 # Evaluation report: rules (rules-engine)
 
-Run at 2026-10-18T18:42:08+00:00 | prompt triage-v1.3 | 13 labelled alerts
+Run at 2026-10-19T07:52:27+00:00 | prompt triage-v1.4 | 13 labelled alerts
 
 | Metric | Value |
 |---|---|
@@ -13,7 +13,7 @@ Run at 2026-10-18T18:42:08+00:00 | prompt triage-v1.3 | 13 labelled alerts
 | LLM vs rules engine disagreements | 0 |
 | Fallbacks to rules investigator | 0 |
 | Avg tool calls / LLM calls / tokens | 7.0 / 0.0 / 0 |
-| Avg latency | 15 ms |
+| Avg latency | 25 ms |
 
 ## Confusion matrix (rows = label, columns = recommendation)
 

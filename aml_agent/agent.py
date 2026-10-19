@@ -22,11 +22,11 @@ from .controls import apply_controls, normalize_decision
 from .data_store import DataStore
 from .llm import LLMError, extract_json
 from .narrative import POLICY_QUERIES, build_rules_decision
-from .prompts import FINALISE_REQUEST, REPAIR_REQUEST, SYSTEM_PROMPT, investigation_request
+from .prompts import FINALISE_REQUEST, REPAIR_REQUEST, SYSTEM_PROMPT, SYSTEM_PROMPT_COMPACT, investigation_request
 from .retrieval import PolicyIndex
 from .rules import score_case
 from .screening import screen_case
-from .tools import TOOL_SCHEMAS, ToolKit
+from .tools import COMPACT_TOOL_SCHEMAS, TOOL_SCHEMAS, ToolKit
 from .typologies import CaseContext, run_detectors
 
 
@@ -61,15 +61,22 @@ class CaseResult:
 
 
 class TriageAgent:
-    def __init__(self, store: DataStore, llm=None, mode: str = "rules", max_steps: int = C.MAX_AGENT_STEPS):
+    def __init__(self, store: DataStore, llm=None, mode: str = "rules", max_steps: int = C.MAX_AGENT_STEPS,
+                 toolset: str = "compact"):
         if mode not in {"llm", "rules"}:
             raise ValueError("mode must be 'llm' or 'rules'")
         if mode == "llm" and llm is None:
             raise ValueError("LLM mode needs an LLM client")
+        if toolset not in {"compact", "granular"}:
+            raise ValueError("toolset must be 'compact' or 'granular'")
         self.store = store
         self.llm = llm
         self.mode = mode
         self.max_steps = max_steps
+        # compact: open_case + get_transactions + search_policy (fewer round trips; default for Groq)
+        # granular: six separate tools (suits models that call several tools per turn)
+        self.tool_schemas = COMPACT_TOOL_SCHEMAS if toolset == "compact" else TOOL_SCHEMAS
+        self.system_prompt = SYSTEM_PROMPT_COMPACT if toolset == "compact" else SYSTEM_PROMPT
         self.policy = PolicyIndex(store.policy_text)
 
     # ------------------------------------------------------------------ public
@@ -100,12 +107,18 @@ class TriageAgent:
         used_mode, fallback, proposed = self.mode, None, None
         if self.mode == "llm":
             switches_before = len(getattr(self.llm, "model_switches", []))
+            if hasattr(self.llm, "on_retry"):  # make provider waits visible in the live trace
+                self.llm.on_retry = lambda wait, reason: audit.log(
+                    "SYSTEM", f"Waiting {wait:.0f}s for the LLM provider ({reason})", {"wait_s": round(wait, 1)})
             try:
                 proposed = self._investigate_with_llm(alert_id, toolkit, audit, usage)
                 if proposed is None:
                     fallback = "The LLM did not return a valid decision object (CTRL-SCHEMA)."
             except LLMError as e:
                 fallback = f"LLM unavailable: {e}"
+            finally:
+                if hasattr(self.llm, "on_retry"):
+                    self.llm.on_retry = None
             for sw in getattr(self.llm, "model_switches", [])[switches_before:]:
                 audit.log("SYSTEM", f"Model {sw['from']} is not available; switched to {sw['to']}", sw)
             model = getattr(self.llm, "model", model)
@@ -141,12 +154,12 @@ class TriageAgent:
 
     # ------------------------------------------------------------------ investigators
     def _investigate_with_llm(self, alert_id: str, toolkit: ToolKit, audit: AuditTrail, usage: dict) -> dict | None:
-        messages = [{"role": "system", "content": SYSTEM_PROMPT},
+        messages = [{"role": "system", "content": self.system_prompt},
                     {"role": "user", "content": investigation_request(alert_id)}]
         repaired, finalising = False, False
         for step in range(1, self.max_steps + 1):
             t0 = time.perf_counter()
-            resp = self.llm.chat(messages, tools=TOOL_SCHEMAS, tool_choice="none" if finalising else "auto")
+            resp = self.llm.chat(messages, tools=self.tool_schemas, tool_choice="none" if finalising else "auto")
             usage["llm_calls"] += 1
             usage["prompt_tokens"] += resp.usage.get("prompt_tokens", 0)
             usage["completion_tokens"] += resp.usage.get("completion_tokens", 0)

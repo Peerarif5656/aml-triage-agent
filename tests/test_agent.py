@@ -130,3 +130,37 @@ def test_analyst_decision_and_report(rules_agent):
     assert r.audit.events[-1]["actor"] == "ANALYST"
     report = render_case_report(r)
     assert "OVERRIDDEN" in report and "ALT-1007" in report and "| # |" in report
+
+
+def test_open_case_bundles_the_case_file(store):
+    from aml_agent.audit import AuditTrail
+    from aml_agent.retrieval import PolicyIndex
+    from aml_agent.tools import ToolKit
+    alert = store.get_alert("ALT-1003")
+    tk = ToolKit(store, PolicyIndex(store.policy_text), AuditTrail("ALT-1003", "t", None, "v", "d"))
+    tk.begin_case(alert)
+    out = tk.execute("open_case", {"alert_id": "ALT-1003"})
+    assert out["alert"]["rule_id"] == "SCR-PAY-01"
+    assert out["customer_profile"]["customer_id"] == "C103"
+    assert any(f["typology"] == "HIGH_RISK_JURISDICTION" for f in out["detector_findings"])
+    assert out["sanctions_screening"]["potential_true_match"] is True
+    assert {"SAN-0041", "TX-103-0055"} <= tk.seen_ids
+    assert tk.calls == 1
+    assert "Access denied" in tk.execute("open_case", {"alert_id": "ALT-1001"})["error"]
+
+
+def test_compact_toolset_is_default_for_llm(store):
+    final = {"disposition": "ESCALATE", "risk_score": 95, "confidence": "HIGH",
+             "key_findings": [{"finding": "Beneficiary matches SAN-0041", "evidence": ["SAN-0041", "TX-103-0055"]}],
+             "mitigating_factors": [], "policy_refs": ["POL-SAN-02"], "narrative": "Hold TX-103-0055.",
+             "recommended_actions": ["Hold payment"]}
+    llm = ScriptedLLM([[("open_case", {"alert_id": "ALT-1003"})],
+                       [("search_policy", {"query": "potential true sanctions match"})], final])
+    r = TriageAgent(store, llm=llm, mode="llm").run("ALT-1003")
+    assert llm.calls[0]["tools"] == ["open_case", "get_transactions", "search_policy"]
+    assert "open_case" in llm.calls[0]["messages"][0]["content"]
+    assert r.mode == "llm" and r.decision["disposition"] == "ESCALATE"
+    assert r.metrics["llm_calls"] == 3 and r.grounding["rate"] == 1.0
+    granular = ScriptedLLM([[("get_alert", {"alert_id": "ALT-1003"})], final])
+    TriageAgent(store, llm=granular, mode="llm", toolset="granular").run("ALT-1003")
+    assert "detect_typologies" in granular.calls[0]["tools"]

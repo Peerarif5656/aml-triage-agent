@@ -28,6 +28,12 @@ for judgement over mixed evidence and for writing, and it's checked by controls.
 Three layers: tools are the only source of facts, the grounding control removes any ID no tool returned, and the
 analyst sees the evidence for every finding. Invalid output falls back to the rules investigator.
 
+**Why does the Groq agent use `open_case` instead of separate tools?**
+Cost and latency engineering. gpt-oss calls one tool per turn and each turn re-sends the whole conversation, so seven
+small tools meant about 24k tokens and 140 seconds on the free tier. Bundling the case file into one tool cut it to
+roughly 7-11k tokens and well under a minute, with the same decisions. The granular tools stay available for models
+that call tools in parallel.
+
 **What happens if the model and the rules disagree?**
 CTRL-DUAL routes the case to a senior analyst. The two are independent, so disagreement is informative.
 

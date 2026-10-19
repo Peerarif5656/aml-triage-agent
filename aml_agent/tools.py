@@ -44,7 +44,7 @@ TOOL_SCHEMAS = [
          "days": {"type": "integer", "description": "Look-back window in days (1-365). Default 30."},
          "direction": {"type": "string", "enum": ["IN", "OUT"], "description": "Optional: only credits or debits."},
          "min_amount": {"type": "number", "description": "Optional: only transactions at or above this GBP amount."},
-         "limit": {"type": "integer", "description": "Max rows returned (1-50). Default 15; largest amounts kept."}},
+         "limit": {"type": "integer", "description": "Max rows returned (1-25). Default 15; largest amounts kept."}},
         ["customer_id"]),
     _fn("detect_typologies",
         "Run the bank's deterministic AML pattern detectors (structuring, pass-through, circular flows, dormancy, "
@@ -62,7 +62,20 @@ TOOL_SCHEMAS = [
          "k": {"type": "integer", "description": "Number of sections to return (1-5). Default 2."}},
         ["query"]),
 ]
-TOOL_NAMES = [t["function"]["name"] for t in TOOL_SCHEMAS]
+
+# Compact tool set for models that call one tool per turn (e.g. gpt-oss on Groq). Each turn re-sends the
+# whole conversation, so bundling the case file into one call cuts round trips and tokens by more than half,
+# which keeps an investigation inside a free tier's tokens-per-minute limit.
+OPEN_CASE_SCHEMA = _fn(
+    "open_case",
+    "Open the case file in one call: the alert (rule, date, summary, triggering transaction IDs), the customer's "
+    "KYC profile (expected activity, PEP status, EDD date, known counterparties, expected events, documents), the "
+    "bank's typology detector findings (with evidence IDs and any documented mitigation) and sanctions screening "
+    "of the customer and all counterparties (hits graded STRONG, POSSIBLE or WEAK). Call this first.",
+    {"alert_id": {"type": "string", "description": "Alert ID, e.g. ALT-1001"}}, ["alert_id"])
+_BY_NAME = {t["function"]["name"]: t for t in TOOL_SCHEMAS}
+COMPACT_TOOL_SCHEMAS = [OPEN_CASE_SCHEMA, _BY_NAME["get_transactions"], _BY_NAME["search_policy"]]
+TOOL_NAMES = [t["function"]["name"] for t in TOOL_SCHEMAS] + ["open_case"]
 
 
 def compact_txn(t: dict) -> dict:
@@ -91,6 +104,7 @@ class ToolKit:
             "detect_typologies": self.detect_typologies,
             "screen_sanctions": self.screen_sanctions,
             "search_policy": self.search_policy,
+            "open_case": self.open_case,
         }
 
     # ------------------------------------------------------------------ plumbing
@@ -135,6 +149,11 @@ class ToolKit:
     def _summary(name: str, r: dict) -> str:
         if "error" in r:
             return f"ERROR: {r['error']}"
+        if name == "open_case":
+            found = ", ".join(f"{f['typology']}{' (mitigated)' if f['mitigated'] else ''}"
+                              for f in r["detector_findings"]) or "no typologies"
+            return (f"{r['alert']['rule_id']} · {r['customer_profile']['name']} · findings: {found} · "
+                    f"sanctions: {len(r['sanctions_screening']['hits'])} hit(s)")
         if name == "get_alert":
             return f"{r['rule_id']}: {r['rule_name']}"
         if name == "get_customer_profile":
@@ -168,7 +187,7 @@ class ToolKit:
                          min_amount: float = 0, limit: int = 15) -> dict:
         self._scope(customer_id)
         days = max(1, min(int(days), 365))
-        limit = max(1, min(int(limit), 50))
+        limit = max(1, min(int(limit), 25))
         start = self.ctx.as_of - timedelta(days=days)
         rows = self.store.transactions(customer_id, start, self.ctx.as_of)
         if direction in {"IN", "OUT"}:
@@ -207,6 +226,27 @@ class ToolKit:
                 "secondary_identifiers", "strength", "txn_ids"]
         result["hits"] = [{k: h[k] for k in keep} for h in result["hits"]]
         return result
+
+    def open_case(self, alert_id: str) -> dict:
+        alert = self.get_alert(alert_id)
+        if "error" in alert:
+            return alert
+        cid = alert["customer_id"]
+        findings = [{k: f[k] for k in ("typology", "title", "description", "mitigated", "mitigation",
+                                       "mitigation_evidence", "policy_ref")} | {"evidence": f["evidence"][:12]}
+                    for f in self.detect_typologies(cid)["findings"]]
+        screening = self.screen_sanctions(cid)
+        hits = [{k: h[k] for k in ("sanctions_id", "listed_name", "screened_name", "party_role", "name_score",
+                                   "listed_dob", "listed_nationality", "listed_country", "secondary_identifiers",
+                                   "strength", "txn_ids")} for h in screening["hits"]]
+        return {
+            "alert": {k: alert[k] for k in ("alert_id", "alert_date", "rule_id", "rule_name", "priority",
+                                            "trigger_summary", "trigger_txn_ids")},
+            "customer_profile": self.get_customer_profile(cid),
+            "detector_findings": findings,
+            "sanctions_screening": {"summary": screening["summary"], "parties_screened": screening["parties_screened"],
+                                    "potential_true_match": screening["potential_true_match"], "hits": hits},
+        }
 
     def search_policy(self, query: str, k: int = 2) -> dict:
         k = max(1, min(int(k), 5))
