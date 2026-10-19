@@ -99,12 +99,17 @@ class TriageAgent:
         usage = {"prompt_tokens": 0, "completion_tokens": 0, "llm_calls": 0}
         used_mode, fallback, proposed = self.mode, None, None
         if self.mode == "llm":
+            switches_before = len(getattr(self.llm, "model_switches", []))
             try:
                 proposed = self._investigate_with_llm(alert_id, toolkit, audit, usage)
                 if proposed is None:
                     fallback = "The LLM did not return a valid decision object (CTRL-SCHEMA)."
             except LLMError as e:
                 fallback = f"LLM unavailable: {e}"
+            for sw in getattr(self.llm, "model_switches", [])[switches_before:]:
+                audit.log("SYSTEM", f"Model {sw['from']} is not available; switched to {sw['to']}", sw)
+            model = getattr(self.llm, "model", model)
+            audit.model = model
             if fallback:
                 audit.log("SYSTEM", "Falling back to rules investigator", fallback)
                 used_mode = "rules"

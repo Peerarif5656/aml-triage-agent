@@ -15,7 +15,7 @@ import streamlit as st
 from aml_agent import config as C
 from aml_agent.agent import CaseResult, TriageAgent, record_analyst_decision
 from aml_agent.data_store import DataStore, public_txn
-from aml_agent.llm import GroqClient, LLMError
+from aml_agent.llm import GroqClient, LLMError, list_groq_models, usable_models
 from aml_agent.report import render_case_report
 from eval.run_eval import RESULTS_DIR, evaluate, to_markdown
 
@@ -48,6 +48,12 @@ def kpis(items: list[tuple[str, str]]) -> str:
 @st.cache_resource
 def get_store() -> DataStore:
     return DataStore()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def groq_models(api_key: str) -> list[str] | None:
+    """Models this key can use, refreshed hourly, so a model Groq retires drops out of the menu."""
+    return list_groq_models(api_key)
 
 
 def secret_key() -> str | None:
@@ -98,16 +104,18 @@ with st.sidebar:
     use_llm = engine.startswith("LLM")
     model, api_key = C.DEFAULT_MODEL, key_from_secrets
     if use_llm:
-        model = st.selectbox("Model", C.AVAILABLE_MODELS,
-                             help="llama-3.3-70b-versatile makes parallel tool calls, which keeps runs fast on "
-                                  "Groq's free tier. gpt-oss models reason more but call tools one at a time.")
-        if key_from_secrets:
-            st.success("Groq API key configured on the server.", icon="🔑")
-        else:
+        if not key_from_secrets:
             api_key = st.text_input("Groq API key", type="password",
                                     help="Used only in this browser session; never stored.")
-            if not api_key:
-                st.info("Get a free key at console.groq.com, or switch to the offline rules engine.")
+        options = usable_models(groq_models(api_key)) if api_key else list(C.AVAILABLE_MODELS)
+        model = st.selectbox("Model", options,
+                             help="Only models your Groq account can use are listed. gpt-oss models use Groq's "
+                                  "prompt caching, which keeps a multi-step investigation within the free tier's "
+                                  "per-minute token limit.")
+        if key_from_secrets:
+            st.success("Groq API key configured on the server.", icon="🔑")
+        elif not api_key:
+            st.info("Get a free key at console.groq.com, or switch to the offline rules engine.")
     st.divider()
     st.markdown("**About this demo**")
     st.caption("All customers, transactions, sanctions entries and jurisdictions are synthetic. "
@@ -120,7 +128,8 @@ def build_agent() -> tuple[TriageAgent | None, str | None]:
         if not api_key:
             return None, "Add a Groq API key in the sidebar, or switch to the offline rules engine."
         try:
-            return TriageAgent(store, llm=GroqClient(api_key, model=model), mode="llm"), None
+            client = GroqClient(api_key, model=model, fallback_models=[m for m in options if m != model])
+            return TriageAgent(store, llm=client, mode="llm"), None
         except LLMError as e:
             return None, str(e)
     return TriageAgent(store, mode="rules"), None

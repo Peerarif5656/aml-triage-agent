@@ -24,7 +24,8 @@ This project is built around those constraints.
 
 ## What it does
 
-- **Investigates** an alert through a tool-calling loop on Groq (`llama-3.3-70b-versatile` by default).
+- **Investigates** an alert through a tool-calling loop on Groq (`openai/gpt-oss-120b` by default; the app lists only
+  models your Groq account can use and switches automatically if a model is retired).
 - **Detects typologies** with 12 deterministic detectors: structuring, money mule pass-through, round-tripping,
   dormant account reactivation, account takeover signals, PEP funds, velocity, large inflows, higher-risk
   jurisdictions, unapproved beneficiaries, funnel accounts and income shifts. Each finding cites transactions
@@ -122,7 +123,7 @@ from the command line or the app's Evaluation tab.
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
-pytest                                               # 63 tests, no API key needed
+pytest                                               # 68 tests, no API key needed
 streamlit run app.py
 ```
 
@@ -164,7 +165,7 @@ aml_agent/
   report.py       Markdown case report
 data/             synthetic customers, transactions, alerts, sanctions list, labels, policy
 eval/run_eval.py  evaluation harness
-tests/            63 unit tests incl. a scripted mock LLM for the agent loop and controls
+tests/            68 unit tests incl. a scripted mock LLM for the agent loop and controls
 app.py            Streamlit UI
 demo/             self-contained web demo (template + built page)
 scripts/          dataset generator and web demo builder

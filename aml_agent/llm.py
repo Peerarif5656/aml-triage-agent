@@ -10,7 +10,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from .config import DEFAULT_MODEL, GROQ_BASE_URL, LLM_TEMPERATURE
+from .config import AVAILABLE_MODELS, DEFAULT_MODEL, GROQ_BASE_URL, LLM_TEMPERATURE
 
 
 class LLMError(RuntimeError):
@@ -43,7 +43,7 @@ class GroqClient:
     """Thin wrapper over the OpenAI SDK pointed at Groq."""
 
     def __init__(self, api_key: str, model: str = DEFAULT_MODEL, base_url: str = GROQ_BASE_URL,
-                 max_retries: int = 4, timeout: float = 60.0):
+                 max_retries: int = 4, timeout: float = 60.0, fallback_models: list[str] | None = None):
         if not api_key:
             raise LLMError("No Groq API key provided")
         try:
@@ -52,30 +52,37 @@ class GroqClient:
             raise LLMError("The 'openai' package is required for LLM mode: pip install openai") from e
         self.model = model
         self.max_retries = max_retries
+        # Providers retire models; if the chosen one is gone, try these in order instead of failing.
+        self.fallback_models = [m for m in (fallback_models if fallback_models is not None else AVAILABLE_MODELS)
+                                if m != model]
+        self.model_switches: list[dict] = []
         self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=0)
 
     def chat(self, messages: list[dict], tools: list[dict] | None = None, tool_choice: str = "auto") -> LLMResponse:
-        kwargs = {"model": self.model, "messages": messages, "temperature": LLM_TEMPERATURE}
+        kwargs = {"messages": messages, "temperature": LLM_TEMPERATURE}
         if tools:
             kwargs["tools"] = tools
             kwargs["tool_choice"] = tool_choice
-        last_error = None
-        for attempt in range(self.max_retries + 1):
+        attempt = 0
+        while True:
+            kwargs["model"] = self.model
             try:
                 resp = self._client.chat.completions.create(**kwargs)
                 break
             except Exception as e:  # SDK raises typed errors; classify by status/name
-                last_error = e
                 status = getattr(e, "status_code", None)
                 text = str(e)
+                if status == 404 and "model_not_found" in text and self.fallback_models:
+                    retired, self.model = self.model, self.fallback_models.pop(0)
+                    self.model_switches.append({"from": retired, "to": self.model, "reason": "model_not_found"})
+                    continue
                 retryable = (status in (429, 500, 502, 503, 504)
                              or type(e).__name__ in {"APITimeoutError", "APIConnectionError", "RateLimitError"}
                              or (status == 400 and "tool_use_failed" in text))
-                if not retryable or attempt == self.max_retries:
+                if not retryable or attempt >= self.max_retries:
                     raise LLMError(f"{type(e).__name__}: {text[:300]}") from e
                 time.sleep(self._retry_after(e, attempt))
-        else:  # pragma: no cover
-            raise LLMError(str(last_error))
+                attempt += 1
 
         msg = resp.choices[0].message
         calls = [ToolCall(tc.id, tc.function.name, tc.function.arguments or "{}") for tc in (msg.tool_calls or [])]
@@ -92,6 +99,23 @@ class GroqClient:
             return min(float(headers.get("retry-after", "")), 30.0)
         except (TypeError, ValueError):
             return min(2 ** (attempt + 1), 20)
+
+
+def list_groq_models(api_key: str, base_url: str = GROQ_BASE_URL) -> list[str] | None:
+    """Model IDs this API key can use right now, or None if the list cannot be fetched."""
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key, base_url=base_url, timeout=15.0, max_retries=1)
+        return sorted(m.id for m in client.models.list())
+    except Exception:
+        return None
+
+
+def usable_models(available: list[str] | None, preferred: list[str] = AVAILABLE_MODELS) -> list[str]:
+    """Preferred models the account can use, in preference order; the full preferred list if unknown."""
+    if not available:
+        return list(preferred)
+    return [m for m in preferred if m in available] or list(preferred)
 
 
 def extract_json(text: str | None) -> dict | None:

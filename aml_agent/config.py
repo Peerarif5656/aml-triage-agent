@@ -13,15 +13,18 @@ DATA_DIR = ROOT / "data"
 
 # ----------------------------------------------------------------- LLM settings
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-# llama-3.3-70b-versatile supports parallel tool calls (fewer round trips, which matters on the
-# free tier's tokens-per-minute limit). gpt-oss-120b reasons more carefully but calls tools one at a time.
-DEFAULT_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+# Groq retired llama-3.3-70b-versatile for free/developer tiers on 2026-08-16; gpt-oss-120b is its
+# recommended replacement. The gpt-oss models support Groq prompt caching, and cached tokens do not
+# count toward rate limits, so a multi-step tool loop fits the free tier's tokens-per-minute budget.
+# The app also checks which of these the account can use, and the client falls back automatically
+# if a model is retired (model_not_found).
+DEFAULT_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 AVAILABLE_MODELS = [
-    "llama-3.3-70b-versatile",
     "openai/gpt-oss-120b",
     "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
 ]
-MAX_AGENT_STEPS = 10          # maximum LLM turns per investigation
+MAX_AGENT_STEPS = 14          # maximum LLM turns per investigation (gpt-oss calls one tool per turn)
 LLM_TEMPERATURE = 0.0
 
 # ----------------------------------------------------------------- dispositions

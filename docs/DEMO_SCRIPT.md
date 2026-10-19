@@ -36,9 +36,12 @@ Model risk validation (independent testing, documented limitations), PII redacti
 integration with the case management system, monitoring of override rates and drift, red-teaming for prompt
 injection (for example malicious text in a payment reference), and back-testing on historical alert outcomes.
 
-**Why Groq and Llama?**
-Fast, cheap inference with OpenAI-compatible tool calling. The agent only depends on a small response type, so
-switching to Azure OpenAI, Bedrock or an on-premise model is a client change, not an agent change.
+**Why Groq, and which model?**
+Fast, cheap inference with OpenAI-compatible tool calling. It runs on `openai/gpt-oss-120b`. Groq retired the
+earlier Llama 3.3 default for free accounts, so the app now reads the account's available models and switches
+automatically if one is retired, which is the same resilience you'd want with any model provider. The agent only
+depends on a small response type, so moving to Azure OpenAI, Bedrock or an on-premise model is a client change,
+not an agent change.
 
 **What would you add next?**
 Hybrid retrieval over the full policy library, a LangGraph-style state machine for multi-step L2 investigations,
